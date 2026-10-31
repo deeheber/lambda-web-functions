@@ -5,7 +5,7 @@ Started: 2026-10-31T19:05:25.860Z
 
 ## Tasks
 
-- [ ] P1-01 Switch auth to AUTH_MODE across config, middleware, app and server
+- [x] P1-01 Switch auth to AUTH_MODE across config, middleware, app and server
 - [ ] P1-02 Add dev and dev:public scripts
 - [ ] P1-03 Phase 1 end: push and list manual checks
 - [ ] P2-01 Add the SAM template, samconfig and sam build
@@ -18,3 +18,7 @@ Started: 2026-10-31T19:05:25.860Z
 ## Log
 
 (one entry per task, appended by implement)
+
+### P1-01 — dcb794f
+
+AUTH_MODE union in config (AuthConfig exported), authMiddleware(auth, verifier?) throws at construction in jwt without verifier, whoami drops endpoint, server builds verifier only in jwt mode. All 12 files updated; tests green.
