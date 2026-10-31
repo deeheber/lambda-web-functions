@@ -10,7 +10,9 @@
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "dev": "esbuild src/server.ts --bundle --platform=node --target=node24 --format=cjs --outfile=dist/index.js && printf '{\"type\":\"commonjs\"}' > dist/package.json && AUTH_ENDPOINT_IAM=iam AUTH_ENDPOINT_JWT=public COGNITO_USER_POOL_ID=us-west-2_000000000 COGNITO_CLIENT_ID=local node dist/index.js",
-    "build": "bash scripts/build.sh"
+    "build": "bash scripts/build.sh",
+    "deploy": "bash scripts/deploy.sh",
+    "teardown": "bash scripts/teardown.sh"
   },
   "dependencies": {
     "aws-jwt-verify": "^5.2.1",
