@@ -14,7 +14,7 @@ Started: 2026-10-31T18:07:39.064Z
 - [x] P2-01 Add the artifacts bucket template
 - [x] P2-02 Add the app template and the pairing invariant test
 - [x] P2-03 Add the CJS bundle and zip build script
-- [ ] P2-04 Add the deploy and teardown scripts
+- [x] P2-04 Add the deploy and teardown scripts
 - [ ] P2-05 Push phase 2 and list the manual checks
 - [ ] P3-01 Add the test-user and JWT smoke scripts
 - [ ] P3-02 Add the SigV4 IAM smoke script
@@ -66,3 +66,7 @@ Tests: infra.test.ts app describe (9). cfn-lint exit 0. Parameter Descriptions f
 ### P2-03 — 6aaebe6
 
 Tests: bundle.test.ts (4) builds into a temp dir, unzips, runs the bundle. npm run build verified: zip lists only index.js. Build verify command now active.
+
+### P2-04 — 6f2d508
+
+Tests: scripts.test.ts (3; bash -n only). Note: constraint infra-tunables-are-parameters scans scripts too, so comments in deploy.sh must not write "MaxEnvironments=4" style text. Later scripts/test (P3) must also avoid tunable=value text.
