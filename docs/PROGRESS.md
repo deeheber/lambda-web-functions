@@ -19,7 +19,7 @@ Started: 2026-10-31T18:07:39.064Z
 - [x] P3-01 Add the test-user and JWT smoke scripts
 - [x] P3-02 Add the SigV4 IAM smoke script
 - [x] P3-03 Write the README
-- [ ] P3-04 Push phase 3 and list the manual checks
+- [x] P3-04 Push phase 3 and list the manual checks
 
 ## Log
 
@@ -89,3 +89,13 @@ Tests: scripts.test.ts +3. Added dev deps @smithy/signature-v4, @aws-crypto/sha2
 ### P3-03 — 7d0ee66
 
 Tests: readme.test.ts (3). README has all required sections; README is not scanned by constraints so it shows the deploy override example.
+
+### P3-04 — f6ff275
+
+Push: pushed origin build/2026-10-31.
+Manual check: NOT VERIFIED (human)
+- After npm run deploy: npm run create-test-user -- <email> prints an access token.
+- npm run smoke:iam and npm run smoke:jwt -- <token> both exit 0.
+- Calling /whoami several times on each endpoint shows a shared envId and a rising requestCount (same environments serve both endpoints).
+- Logs appear in /aws/lambda/web/lwf-hello.
+- npm run teardown removes both stacks.
