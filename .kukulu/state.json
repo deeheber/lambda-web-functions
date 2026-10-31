@@ -1,124 +1,22 @@
 {
-  "round": 1,
-  "implemented": true,
-  "reviewed": true,
-  "verdict": "APPROVED",
-  "summarized": true,
+  "round": 0,
+  "implemented": false,
+  "reviewed": false,
+  "verdict": null,
+  "summarized": false,
   "halted": null,
   "preexistingUntracked": [],
   "policies": {
     "signing": "auto",
     "push": true,
     "pr": "draft",
-    "feedback": true,
-    "archive": true,
-    "finalize": "auto",
-    "mergeMethod": "merge",
-    "syncBase": true
+    "feedback": true
   },
-  "signing": "on",
-  "rounds": [
-    {
-      "round": 1,
-      "fixTasks": 2,
-      "unblocked": 0,
-      "verdict": "CHANGES REQUESTED",
-      "nonConverging": false,
-      "sources": {
-        "review": 0,
-        "mutation": 2,
-        "blocked": 0
-      },
-      "at": "2026-10-31T19:18:29.015Z"
-    },
-    {
-      "round": 2,
-      "fixTasks": 0,
-      "unblocked": 0,
-      "verdict": "APPROVED",
-      "sources": {
-        "review": 0,
-        "mutation": 0,
-        "blocked": 0
-      },
-      "at": "2026-10-31T19:22:18.268Z"
-    }
-  ],
+  "signing": null,
+  "rounds": [],
   "archived": {
-    "slug": "init-setup",
-    "dir": "docs/flights/init-setup",
-    "at": "2026-10-31T18:25:41.256Z"
-  },
-  "breaking": false,
-  "timeline": [
-    {
-      "event": "start",
-      "stage": "plan",
-      "round": 0,
-      "at": "2026-10-31T18:47:27.018Z"
-    },
-    {
-      "event": "end",
-      "stage": "plan",
-      "round": 0,
-      "at": "2026-10-31T19:05:17.448Z"
-    },
-    {
-      "event": "start",
-      "stage": "implement",
-      "round": 0,
-      "at": "2026-10-31T19:05:17.448Z"
-    },
-    {
-      "event": "end",
-      "stage": "implement",
-      "round": 0,
-      "at": "2026-10-31T19:10:38.942Z"
-    },
-    {
-      "event": "start",
-      "stage": "review",
-      "round": 0,
-      "at": "2026-10-31T19:10:38.942Z"
-    },
-    {
-      "event": "end",
-      "stage": "review",
-      "round": 0,
-      "at": "2026-10-31T19:18:46.461Z"
-    },
-    {
-      "event": "start",
-      "stage": "implement",
-      "round": 1,
-      "at": "2026-10-31T19:18:46.461Z"
-    },
-    {
-      "event": "end",
-      "stage": "implement",
-      "round": 1,
-      "at": "2026-10-31T19:19:46.832Z"
-    },
-    {
-      "event": "start",
-      "stage": "review",
-      "round": 1,
-      "at": "2026-10-31T19:19:46.832Z"
-    },
-    {
-      "event": "end",
-      "stage": "review",
-      "round": 1,
-      "at": "2026-10-31T19:22:33.557Z"
-    },
-    {
-      "event": "start",
-      "stage": "summarize",
-      "round": 1,
-      "at": "2026-10-31T19:22:33.557Z"
-    }
-  ],
-  "cleanroom": {
-    "mode": "general"
+    "slug": "sam-two-functions",
+    "dir": "docs/flights/sam-two-functions",
+    "at": "2026-10-31T19:23:39.959Z"
   }
 }
