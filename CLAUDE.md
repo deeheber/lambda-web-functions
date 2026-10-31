@@ -12,7 +12,7 @@ A TypeScript Express 5 app deployed as two AWS Lambda Web Functions defined with
 - [ ] `template.yaml` has no 12-digit account IDs and no Region literals; use `AWS::AccountId`, `AWS::Region`, `AWS::Partition`.
 - [ ] Template invariant (`test/template.test.ts`): exactly two `AWS::Serverless::WebFunction` and no `AWS::Lambda::WebFunction*`; the `IamAuth` function has `AUTH_MODE: iam` and no Cognito vars; the `ApplicationManaged` function has `AUTH_MODE: jwt` plus `COGNITO_USER_POOL_ID` and `COGNITO_CLIENT_ID`.
 - [ ] Every SPEC section 5 tunable has exactly one home with its default: a key in `src/config.ts` or a parameter in `template.yaml`.
-- [ ] Nothing in `test/` and no verify command calls the `aws` CLI, `sam deploy`, `sam delete`, or creates an AWS SDK client. The flight never calls AWS.
+- [ ] Nothing in `test/` and no check command calls the `aws` CLI, `sam deploy`, `sam delete`, or creates an AWS SDK client.
 - [ ] Tests are written in the same task as the code they cover.
 
 ## Commands
@@ -47,55 +47,29 @@ Boundaries: `src/` never imports from `scripts/` or `test/`; `scripts/` never im
 
 ## Constraints
 
-Each line marked (kukulu.json: id) is enforced by `kukulu_verify` from `docs/kukulu.json`.
-
-- No `process.env` outside `src/config.ts` in `src/`, `test/`, `scripts/`, `vitest.config.ts`, `eslint.config.js` (kukulu.json: `process-env-only-in-config`).
-- No `lambda-web-` in `src/` or `template.yaml`, any case, comments included (kukulu.json: `no-lambda-web-prefix`).
-- No auth bypass flag or `'none'`/`'off'`/`'skip'`/`'disabled'` mode string in `src/` (kukulu.json: `no-auth-bypass-mode`).
-- Every `AUTH_MODE` value in `template.yaml` is literally `iam` or `jwt` (kukulu.json: `template-auth-mode-iam-or-jwt`).
-- No `AUTH_ENDPOINT_IAM`/`AUTH_ENDPOINT_JWT`, `iamEndpointName`, `jwtEndpointName` or `AuthEndpoints` anywhere (kukulu.json: `no-endpoint-name-config`).
-- No `aws-jwt-verify` import or mock outside `src/auth/jwt-verifier.ts` (kukulu.json: `jwt-lib-only-in-adapter`).
-- No top-level `let`/`var` or top-level `Map`/`Set`/`Array` instance in `src/` outside `src/env-info.ts` (kukulu.json: `no-module-level-mutable-state`). Top-level object/array literals that get mutated: reviewer checks by reading.
-- No `X-Forwarded-Host` and no `trust proxy` in `src/` (kukulu.json: `no-forwarded-host`).
-- No `import.meta` in `src/` (kukulu.json: `no-import-meta-in-src`). No top-level `await` in `src/`: reviewer checks by reading, and the CJS build fails on it.
-- Stream defaults (`5` ticks, `500` ms) only in `src/config.ts`; never set in scripts, `package.json`, `samconfig.toml` or `template.yaml` (kukulu.json: `stream-tunables-only-in-config`).
-- Listen default `127.0.0.1:3000` only in `src/config.ts` (kukulu.json: `listen-default-only-in-config`); `package.json` never spells `3000` (kukulu.json: `dev-script-uses-listen-default`).
-- No 12-digit numbers in `template.yaml` (kukulu.json: `template-no-account-id`).
-- No Region literals in `template.yaml` (kukulu.json: `template-no-region-literal`).
-- `Timeout`, `MaxConcurrencyPerEnvironment`, `MaxEnvironments`, `RateLimit`, `ApplicationLogLevel` get values only from `template.yaml` parameter defaults; Resources use `!Ref`; no literal in `samconfig.toml`, `scripts/` or `package.json`, comments included (kukulu.json: `template-tunables-are-parameters`).
-- No AWS SDK import, SDK client, or spawned `aws`/`sam` command in `test/` (kukulu.json: `tests-never-call-aws`).
-- The `typecheck`, `lint`, `test` and `build` npm scripts never contain `aws`, `sam deploy`, `sam delete` or `sam sync` (kukulu.json: `section7-commands-never-call-aws`).
-- No global npm install in `package.json`, `scripts/` or `README.md` (kukulu.json: `no-global-install`).
+- No `process.env` outside `src/config.ts` in `src/`, `test/`, `scripts/`, `vitest.config.ts`, `eslint.config.js`.
+- No `lambda-web-` in `src/` or `template.yaml`, any case, comments included.
+- No auth bypass flag or `'none'`/`'off'`/`'skip'`/`'disabled'` mode string in `src/`.
+- Every `AUTH_MODE` value in `template.yaml` is literally `iam` or `jwt`.
+- No `AUTH_ENDPOINT_IAM`/`AUTH_ENDPOINT_JWT`, `iamEndpointName`, `jwtEndpointName` or `AuthEndpoints` anywhere.
+- No `aws-jwt-verify` import or mock outside `src/auth/jwt-verifier.ts`.
+- No top-level `let`/`var` or top-level `Map`/`Set`/`Array` instance in `src/` outside `src/env-info.ts`. Top-level object/array literals that get mutated: reviewer checks by reading.
+- No `X-Forwarded-Host` and no `trust proxy` in `src/`.
+- No `import.meta` in `src/`. No top-level `await` in `src/`: reviewer checks by reading, and the CJS build fails on it.
+- Stream defaults (`5` ticks, `500` ms) only in `src/config.ts`; never set in scripts, `package.json`, `samconfig.toml` or `template.yaml`.
+- Listen default `127.0.0.1:3000` only in `src/config.ts`; `package.json` never spells `3000`.
+- No 12-digit numbers in `template.yaml`.
+- No Region literals in `template.yaml`.
+- `Timeout`, `MaxConcurrencyPerEnvironment`, `MaxEnvironments`, `RateLimit`, `ApplicationLogLevel` get values only from `template.yaml` parameter defaults; Resources use `!Ref`; no literal in `samconfig.toml`, `scripts/` or `package.json`, comments included.
+- No AWS SDK import, SDK client, or spawned `aws`/`sam` command in `test/`.
+- The `typecheck`, `lint`, `test` and `build` npm scripts never contain `aws`, `sam deploy`, `sam delete` or `sam sync`.
+- No global npm install in `package.json`, `scripts/` or `README.md`.
 - No `Globals` section in `template.yaml`; every Web Function property is written on each function: checked by `test/template.test.ts`.
 - The deployed bundle is CommonJS (`Format: cjs`) and each `.aws-sam/build/<Id>/` holds only `server.js`: checked by `test/bundle.test.ts`.
 - Relative imports use the `.ts` extension; type-only imports use `import type`; no `enum`, `namespace` or parameter properties (`erasableSyntaxOnly`): enforced by `tsc`.
 
-## Task protocols
+## Gotchas
 
-### Phase-end protocol
-
-Used by P1-03, P2-03 and P3-03. Make no code changes. Run `git push -u origin HEAD`. Append a progress-log entry that starts `Manual check: NOT VERIFIED (human)` followed by the exact checklist from the task's Verification section. Never run the manual checks yourself (they need a browser, a terminal session left running, or AWS) and never mark them as passed. Later tasks never depend on a manual check. With no code to commit, make an empty commit (`git commit --allow-empty`) titled `<ID>: <title>` with the commit-template body.
-
-### No-AWS rule
-
-No task runs `npm run deploy`, `npm run teardown`, `npm run create-test-user`, `npm run smoke:iam`, `npm run smoke:jwt`, `sam deploy`, `sam delete`, `sam sync` or any `aws` command, and no task starts `npm run dev`/`dev:public`. `npm run build` (`sam build`, which downloads npm packages) is allowed. Tests that spawn a child process use `process.execPath` with a literal `env` object, or inherit the environment (no `env` option) when they run `bash` or `npm`; they never mention `process.env`. Loopback HTTP to `127.0.0.1` in tests is allowed.
-
-## Commit template
-
-```
-<ID>: <title>
-
-Goal: <one sentence from the task>
-Tests: <test files and test names added or changed>
-Interpretation: <any reading of SPEC/PLAN you had to choose, or "none">
-Measurement: <only for tuning tasks; none in this flight>
-Manual check: <NOT VERIFIED (human) + list, for phase-end tasks; otherwise "n/a">
-```
-
-## Flight sam-two-functions notes
-
-- This flight converts the 0.1 build (one function, two endpoints, plain CloudFormation in `infra/`) to two SAM Web Functions. Read each file before editing it; keep what SPEC does not change, delete what it replaces, leave no dead code.
-- Until P2-02, `infra/`, `scripts/build.sh`, `scripts/deploy.sh`, `scripts/teardown.sh` and `test/infra.test.ts` still exist and still pass; do not edit them before P2-02 deletes them.
 - `test/readme.test.ts` requires every npm script name to appear in README as `npm run <name>`; whoever adds a script documents it in the same task.
 - `yaml`'s `parse(text, { logLevel: 'error' })` turns `!Ref X` into the string `'X'` and `!Sub …` into its literal string; `test/template.test.ts` compares against those strings.
 - The CJS bundle crashes when run inside the repo (root `package.json` is `"type": "module"`): the dev scripts write `dist/package.json` `{"type":"commonjs"}`, and `test/bundle.test.ts` copies `server.js` to a temp dir before running it.
@@ -104,4 +78,4 @@ Manual check: <NOT VERIFIED (human) + list, for phase-end tasks; otherwise "n/a"
 - ESLint forbids `any`; type parsed YAML/JSON as `Record<string, unknown>`-based interfaces and use `toMatchObject`/`toEqual`.
 - On macOS, `sed -i` needs a suffix argument; prefer the Edit tool.
 
-SPEC.md wins over PLAN.md, which wins over code comments.
+`docs/SPEC.md` wins over code comments.
