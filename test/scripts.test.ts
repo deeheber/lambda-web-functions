@@ -47,6 +47,20 @@ describe('scripts', () => {
     }
   });
 
+  it('build runs sam build', () => {
+    const pkg = JSON.parse(readFileSync(`${root}package.json`, 'utf8')) as { scripts: Record<string, string> };
+    expect(pkg.scripts.build).toBe('sam build');
+  });
+
+  it('esbuild is a devDependency, not a dependency', () => {
+    const pkg = JSON.parse(readFileSync(`${root}package.json`, 'utf8')) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    expect(pkg.devDependencies.esbuild).toBeDefined();
+    expect(pkg.dependencies.esbuild).toBeUndefined();
+  });
+
   it('package.json wires deploy and teardown to the scripts', () => {
     const pkg = JSON.parse(readFileSync(`${root}package.json`, 'utf8')) as { scripts: Record<string, string> };
     expect(pkg.scripts.deploy).toBe('bash scripts/deploy.sh');
