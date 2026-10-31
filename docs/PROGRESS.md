@@ -10,7 +10,7 @@ Started: 2026-10-31T19:05:25.860Z
 - [x] P1-03 Phase 1 end: push and list manual checks
 - [x] P2-01 Add the SAM template, samconfig and sam build
 - [x] P2-02 Wire deploy and teardown to the SAM CLI and delete the 0.1 build
-- [ ] P2-03 Phase 2 end: push and list manual checks
+- [x] P2-03 Phase 2 end: push and list manual checks
 - [ ] P3-01 Update the smoke and test-user scripts for the SAM stack
 - [ ] P3-02 Rewrite the README and confirm the CLAUDE.md module map
 - [ ] P3-03 Phase 3 end: push and list manual checks
@@ -43,3 +43,11 @@ template.yaml, samconfig.toml, .aws-sam/ ignored (git + eslint), build = sam bui
 ### P2-02 — 1071a16
 
 deploy=sam build && sam deploy, teardown=sam delete --no-prompts. infra/, build/deploy/teardown.sh, infra.test.ts deleted; env.sh drops ARTIFACTS_STACK_NAME; *.zip ungitignored. bundle.test.ts now runs npm run build and runs each .aws-sam/build/<Fn>/server.js copied to tmp. README still has stale 0.1 text (P3-02).
+
+### P2-03 — 1fa8cbb
+
+Push: done.
+Manual check: NOT VERIFIED (human)
+- `npm run deploy` succeeds in us-west-2.
+- The Lambda console shows two functions: lwf-iam with one Active endpoint iam (IAM auth) and lwf-public with one Active endpoint public, each with one revision.
+- The first deploy created a code bucket stack named lwf-<hash>-WebFunctionCode.
