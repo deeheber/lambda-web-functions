@@ -236,7 +236,7 @@ Update `scripts/create-test-user.sh`, `scripts/smoke-iam.ts` and `scripts/smoke-
 Update `CLAUDE.md`'s module map, including the `createJwtVerifier(settings, jwks?)` signature and the `Jwks` type.
 **Manual check:**
 - Both smoke scripts pass.
-- Calling `/whoami` several times on each function shows a stable `envId` and a rising `requestCount` within that function. The two functions have different `envId`s, since they don't share environments.
+- Calling `/whoami` several times on each function shows `requestCount` rising across calls that return the same `envId`; a different `envId` with a lower count means another environment served the call, which is fine. The two functions have different `envId`s, since they don't share environments.
 - Logs appear in `/aws/lambda/web/lwf-iam` and `/aws/lambda/web/lwf-public`.
 - `npm run teardown` removes the app stack and its code bucket stack.
 

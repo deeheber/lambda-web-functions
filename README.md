@@ -20,7 +20,7 @@ The same routes on both functions. In `jwt` mode, every route except `/health` n
 | `GET /stream` | `200 text/event-stream`: `data: {"tick":n}` events, one per interval, then the response ends |
 | anything else | `404 {"error":"not_found"}` |
 
-`envId` and `requestCount` show environment reuse: one environment serves many requests, so repeated calls return the same `envId` and a rising `requestCount`. `/stream` shows native HTTP streaming.
+`envId` and `requestCount` show environment reuse: one environment serves many requests, so calls that return the same `envId` show a rising `requestCount`. Lambda may route a call to another environment or scale one down, so a new `envId` with a lower count is normal. `/stream` shows native HTTP streaming.
 
 ## Prerequisites
 
@@ -85,7 +85,7 @@ npm run smoke:jwt -- "$TOKEN"
 
 ## Environment reuse
 
-Call `/whoami` several times on each endpoint: `envId` stays the same and `requestCount` rises. The two functions have separate environments, so their `envId`s differ.
+Call `/whoami` several times on each endpoint: while `envId` stays the same, `requestCount` rises (a new `envId` means a different environment served the call). The two functions have separate environments, so their `envId`s differ.
 
 ## Logs
 
