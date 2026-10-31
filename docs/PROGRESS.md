@@ -18,7 +18,7 @@ Started: 2026-10-31T18:07:39.064Z
 - [x] P2-05 Push phase 2 and list the manual checks
 - [x] P3-01 Add the test-user and JWT smoke scripts
 - [x] P3-02 Add the SigV4 IAM smoke script
-- [ ] P3-03 Write the README
+- [x] P3-03 Write the README
 - [ ] P3-04 Push phase 3 and list the manual checks
 
 ## Log
@@ -85,3 +85,7 @@ Tests: scripts.test.ts +3. Usage check runs before sourcing env.sh. Existing-use
 ### P3-02 — d6ea711
 
 Tests: scripts.test.ts +3. Added dev deps @smithy/signature-v4, @aws-crypto/sha256-js, @aws-sdk/credential-provider-node. Script not run against AWS; usage path verified (exit 2). JSON responses cast to a local Json interface for tsc.
+
+### P3-03 — 7d0ee66
+
+Tests: readme.test.ts (3). README has all required sections; README is not scanned by constraints so it shows the deploy override example.
