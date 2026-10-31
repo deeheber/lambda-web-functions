@@ -46,3 +46,11 @@ None.
 ## For the reviewer
 
 Auth is fail-closed and lives in `src/auth/index.ts` only; the app takes a `JwtVerifier` via `createApp(config, deps)`. `requestCount` in `whoami` comes from `res.locals`, not the global getter, so concurrent requests do not see each other's counts. Extra dev dependencies for `smoke-iam.ts`: `@smithy/signature-v4`, `@aws-crypto/sha256-js`, `@aws-sdk/credential-provider-node` (used only in `scripts/`).
+
+## Round 1
+
+- Branch build/2026-10-31, head a70f967; 16 done, 0 blocked, 0 skipped.
+- R1-01: createJwtVerifier(settings, jwks?) takes an optional pre-loaded JWKS (inner.cacheJwks); production call in src/server.ts is unchanged. Jwks type is in src/auth/types.ts.
+- Interpretation: the lazy-load test spies net.Socket.prototype.connect (fetch stubs and vi.mock of node:https do not reach aws-jwt-verify, which uses node:https).
+- Tests sign RS256 tokens locally; the 5 listed mutants each fail a test.
+- Manual check: none.
