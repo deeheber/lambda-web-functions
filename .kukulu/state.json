@@ -10,9 +10,13 @@
     "signing": "auto",
     "push": true,
     "pr": "draft",
-    "feedback": true
+    "feedback": true,
+    "archive": true,
+    "finalize": "auto",
+    "mergeMethod": "merge",
+    "syncBase": true
   },
-  "signing": null,
+  "signing": "on",
   "rounds": [],
   "archived": {
     "slug": "init-setup",
@@ -39,5 +43,8 @@
       "round": 0,
       "at": "2026-10-31T19:05:17.448Z"
     }
-  ]
+  ],
+  "cleanroom": {
+    "mode": "general"
+  }
 }
