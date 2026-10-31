@@ -14,6 +14,8 @@ Started: 2026-10-31T19:05:25.860Z
 - [x] P3-01 Update the smoke and test-user scripts for the SAM stack
 - [x] P3-02 Rewrite the README and confirm the CLAUDE.md module map
 - [x] P3-03 Phase 3 end: push and list manual checks
+- [ ] R1-01 Cover request counting order, x-powered-by and the headersSent error path in src/app.ts
+- [ ] R1-02 Test the samconfig.toml-only Region, export, failure guard and BASH_SOURCE lookup in scripts/env.sh
 
 ## Log
 
