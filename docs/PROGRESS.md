@@ -12,7 +12,7 @@ Started: 2026-10-31T18:07:39.064Z
 - [x] P1-05 Add the server entry point with SIGTERM handling and npm run dev
 - [x] P1-06 Push phase 1 and list the manual checks
 - [x] P2-01 Add the artifacts bucket template
-- [ ] P2-02 Add the app template and the pairing invariant test
+- [x] P2-02 Add the app template and the pairing invariant test
 - [ ] P2-03 Add the CJS bundle and zip build script
 - [ ] P2-04 Add the deploy and teardown scripts
 - [ ] P2-05 Push phase 2 and list the manual checks
@@ -58,3 +58,7 @@ Manual check: NOT VERIFIED (human)
 ### P2-01 — 1989238
 
 Tests: infra.test.ts artifacts describe (4). cfn-lint exit 0. Lint forbids explicit any, so template type uses Record<string, unknown> and toMatchObject; P2-02 should do likewise.
+
+### P2-02 — 60643b9
+
+Tests: infra.test.ts app describe (9). cfn-lint exit 0. Parameter Descriptions for MaxEnvironments/RateLimit begin "ASSUMPTION - ". Revision has DeletionPolicy Delete + UpdateReplacePolicy Retain.
