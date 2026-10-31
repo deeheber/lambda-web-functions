@@ -14,7 +14,7 @@ Started: 2026-10-31T19:05:25.860Z
 - [x] P3-01 Update the smoke and test-user scripts for the SAM stack
 - [x] P3-02 Rewrite the README and confirm the CLAUDE.md module map
 - [x] P3-03 Phase 3 end: push and list manual checks
-- [ ] R1-01 Cover request counting order, x-powered-by and the headersSent error path in src/app.ts
+- [x] R1-01 Cover request counting order, x-powered-by and the headersSent error path in src/app.ts
 - [ ] R1-02 Test the samconfig.toml-only Region, export, failure guard and BASH_SOURCE lookup in scripts/env.sh
 
 ## Log
@@ -70,3 +70,7 @@ Manual check: NOT VERIFIED (human)
 - Calling /whoami several times on each function shows a stable envId and a rising requestCount within that function, and the two functions have different envIds.
 - Logs appear in /aws/lambda/web/lwf-iam and /aws/lambda/web/lwf-public.
 - `npm run teardown` removes the app stack and its code bucket stack.
+
+### R1-01 — 247d36e
+
+Added 3 tests in test/app.test.ts (count of rejected requests, no x-powered-by, headersSent path). No src changes. Mutants not re-run via kukulu_mutate (tool unavailable to me); full verify green.
