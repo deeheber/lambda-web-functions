@@ -25,9 +25,10 @@ function report(ok: boolean, check: string): void {
 
 interface Json {
   status?: string;
-  endpoint?: string;
   authMode?: string;
   subject?: string | null;
+  envId?: unknown;
+  requestCount?: unknown;
 }
 
 async function signedGet(path: string): Promise<Response> {
@@ -54,7 +55,11 @@ try {
   const whoami = await signedGet('/whoami');
   const who = whoami.status === 200 ? ((await whoami.json()) as Json) : null;
   report(
-    who !== null && who.endpoint === 'iam' && who.authMode === 'iam' && who.subject === null,
+    who !== null &&
+      who.authMode === 'iam' &&
+      who.subject === null &&
+      typeof who.envId === 'string' &&
+      typeof who.requestCount === 'number',
     'signed /whoami',
   );
 

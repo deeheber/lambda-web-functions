@@ -114,4 +114,25 @@ describe('scripts', () => {
     expect(pkg.scripts['smoke:iam']).toContain('source scripts/env.sh');
     expect(pkg.scripts['smoke:iam']).toContain('node scripts/smoke-iam.ts');
   });
+
+  it('env.sh takes the stack name and Region from samconfig.toml', () => {
+    const r = spawnSync('bash', ['-c', 'source scripts/env.sh && printf "%s %s" "$STACK_NAME" "$AWS_REGION"'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    expect(r.stdout).toBe('lwf us-west-2');
+  });
+
+  it('smoke-iam.ts no longer reads an endpoint field', () => {
+    expect(readFileSync(`${root}scripts/smoke-iam.ts`, 'utf8')).not.toMatch(/\.endpoint\b/);
+  });
+
+  it('no script references infra/ or the artifacts stack', () => {
+    for (const file of readdirSync(`${root}scripts`)) {
+      const text = readFileSync(`${root}scripts/${file}`, 'utf8');
+      for (const word of ['infra/', 'artifacts', 'ARTIFACTS_STACK_NAME']) {
+        expect(text, `${file}: ${word}`).not.toContain(word);
+      }
+    }
+  });
 });
