@@ -47,7 +47,7 @@ Each of these is checkable by grep or by a named test. A violation is a review b
 4. The only module-level mutable state in `src/` is in `src/env-info.ts` (`requestCount`). Route handlers keep per-request data in local variables or `res.locals`.
 5. Under `infra/`: no 12-digit account IDs (grep `[0-9]{12}`) and no Region literals (grep `(us|eu|ap|sa|ca|me|af|il|mx)-[a-z]+-[0-9]`). Use `AWS::AccountId` and `AWS::Region`.
 6. No section 7 command and no file under `test/` invokes the `aws` CLI or creates an AWS SDK client.
-7. **Pairing invariant** (`test/infra.test.ts`): parse `infra/app.yaml` with the `yaml` npm package, which tolerates CloudFormation short-form tags such as `!Ref`. Assert that:
+7. **Pairing invariant** (`test/infra.test.ts`): parse `infra/app.yaml` with the `yaml` npm package (`parse(text, { logLevel: 'error' })`). Verified: it returns short-form tags such as `!Ref X` as plain values (`"X"`), and `logLevel: 'error'` silences its unresolved-tag warnings. Assert that:
    - the revision's `AUTH_ENDPOINT_IAM` value equals the `EndpointName` of an endpoint resource with `AuthType: IamAuth`;
    - the revision's `AUTH_ENDPOINT_JWT` value equals the `EndpointName` of an endpoint resource with `AuthType: ApplicationManaged`;
    - there are exactly two endpoint resources, one `WebFunction` and one `WebFunctionRevision`.
@@ -55,7 +55,7 @@ Each of these is checkable by grep or by a named test. A violation is a review b
 
 ## 4. Architecture
 
-A single npm package at the repo root, ESM, TypeScript `strict`.
+A single npm package at the repo root. Source is ESM TypeScript with `strict` and `erasableSyntaxOnly: true` (so `tsc` rejects `enum`, `namespace` and parameter properties, which Node's native type stripping can't run in `scripts/*.ts`). The **deployed bundle is CommonJS** (see `scripts/build.sh`).
 
 | Path | Responsibility | May import |
 |---|---|---|
@@ -68,7 +68,7 @@ A single npm package at the repo root, ESM, TypeScript `strict`.
 | `src/routes/{health,whoami,stream}.ts` | One route each | `src/env-info`, `src/config` (types) |
 | `infra/artifacts.yaml` | Private S3 bucket for deployment zips (SSE-S3, block all public access, no versioning). Exports the bucket name | — |
 | `infra/app.yaml` | Execution role, Cognito user pool + app client, `WebFunction`, `WebFunctionRevision`, endpoints `iam` and `public`, outputs | — |
-| `scripts/build.sh` | esbuild bundles `src/server.ts` → `dist/index.js` (platform node, target node24, format esm or cjs as long as Node can load `index.js`). Zips it so `index.js` is at the zip root. Prints the zip's sha256 | — |
+| `scripts/build.sh` | esbuild bundles `src/server.ts` → `dist/index.js` with `--bundle --platform=node --target=node24 --format=cjs`. **It must be CJS**: the zip contains only `index.js` and no `package.json`, so Lambda would not load an ESM bundle. `npm run dev` still works locally either way, so nothing before the phase 3 smoke test would catch this. Zips it so `index.js` is at the zip root. Prints the zip's sha256 | — |
 | `scripts/deploy.sh` | `AWS_REGION` defaults to `us-west-2`. Deploys `infra/artifacts.yaml`, uploads the zip as `app-<sha256>.zip`, then deploys `infra/app.yaml` with `CodeBucket`/`CodeKey`. Prints the stack outputs | — |
 | `scripts/create-test-user.sh` | `admin-create-user` + `admin-set-user-password --permanent`, then `initiate-auth USER_PASSWORD_AUTH`. Prints an access token | — |
 | `scripts/smoke-iam.ts` | Run with `node` (Node 24 strips types natively). Signs GET `/health`, `/whoami` and `/stream` against `IamEndpointUrl` with `@smithy/signature-v4` + `@aws-crypto/sha256-js` + the default credential chain, **including `X-Amz-Content-SHA256`**. Also checks that an unsigned GET returns 403. Exits non-zero on any mismatch | — |
@@ -101,7 +101,7 @@ App config (`src/config.ts`). Env var → key → default:
 | `STREAM_TICKS` | `stream.ticks` | `5` | ⚠️ ASSUMPTION |
 | `STREAM_INTERVAL_MS` | `stream.intervalMs` | `500` | ⚠️ ASSUMPTION |
 
-`loadConfig()` throws if a required value is missing, if the two endpoint names are equal, or if a number fails to parse (`test/config.test.ts`). For local dev, `npm run dev` supplies placeholder Cognito values and the endpoint names `iam`/`public`. The `public` path then 401s every token, which is expected locally.
+`loadConfig()` throws if a required value is missing, if the two endpoint names are equal, or if a number fails to parse (`test/config.test.ts`). For local dev, `npm run dev` sets `AUTH_ENDPOINT_IAM=iam`, `AUTH_ENDPOINT_JWT=public`, `COGNITO_USER_POOL_ID=us-west-2_000000000` and `COGNITO_CLIENT_ID=local`. The pool ID must be well-formed (`<region>_<id>`), because `CognitoJwtVerifier.create()` throws on a bad pool ID at startup (verified). The `public` path then 401s every token, which is expected locally.
 
 Stack parameters (`infra/app.yaml`):
 
