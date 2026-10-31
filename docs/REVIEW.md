@@ -1,68 +1,73 @@
 # Review
-Round: 1
+Round: 2
 
-Branch: `build/2026-10-31` (base `e4735a5`, head `3c000dd`). 15 tasks done, 0 blocked, 0 skipped.
+Branch: `build/2026-10-31` (base `e4735a5`, head `08fb001`). 16 tasks done (15 plan tasks and R1-01), 0 blocked, 0 skipped.
 
 ## Verdict
 
-CHANGES REQUESTED
+APPROVED
 
 ## What was checked
 
-- `kukulu_verify` (run by the reviewer): all 13 constraints pass with no fixture failures and no hits; typecheck, lint, `npm test` (79 tests, 11 files) and `npm run build` all exit 0. `cfn-lint infra/*.yaml` (1.58.0) exits 0.
-- Every task commit read against its PLAN task and the SPEC sections it cites. Every source, test, infra and script file was read in full.
-- Constraints that need a human reader: no top-level object/array literal in `src/` is mutated; no top-level `await` in `src/`; `src/auth/index.ts` imports only `express` types and `./types.ts`; `whoami` and `jwt-verifier` import only types from `src/auth/types.ts` (allowed by the PLAN decision). No violations found.
-- Boundaries: `src/` imports nothing from `scripts/`, `infra/` or `test/`; `scripts/` imports nothing from `src/`. The only `.gitignore` change is the one P1-01 asked for, plus the `.kukulu/implement.lock` line written by the pipeline. No CI, editor or `.gitattributes` edits.
-- `prChecks`: `pass` (no failing checks). Round 1 does not need this, but it is recorded here.
-- Mutation sample (`kukulu_mutate`, all restored, tree clean afterwards):
+- `prChecks` from `kukulu_status`: `pass`, with no failing checks.
+- `kukulu_verify` (run by the reviewer): all 13 constraints pass, with no fixture failures and no hits. Typecheck, lint, `npm test` (82 tests in 11 files) and `npm run build` all exit 0.
+- `docs/SPEC.md` was read in full. Section 4's `src/auth/jwt-verifier.ts` row requires a `CognitoJwtVerifier` with `tokenUse: "access"` and `clientId` behind a `JwtVerifier` interface. It does not pin the factory's signature, so the optional `jwks?` parameter is an additive extension that SPEC allows. Principle 3 ("tests pass a fake and never fetch a JWKS") and the section 2 non-goal (no test touches the network) both still hold.
+- Fix-round diff (`c101b0e..HEAD`) touches only `src/auth/jwt-verifier.ts`, `src/auth/types.ts` and `test/jwt-verifier.test.ts`, plus pipeline docs and state. Commit `6d17f98` (R1-01) was read against the PLAN task and SPEC sections 2, 3, 4 and 6:
+  - The seam is an optional second parameter, `createJwtVerifier(settings, jwks?)`. It pre-loads keys through `inner.cacheJwks`. It is not an env var, a bypass flag or a test-only branch. `src/server.ts` still calls `createJwtVerifier(config.auth.cognito)` unchanged, so production keeps loading the JWKS lazily. Nothing calls `hydrate()` eagerly.
+  - The `Jwks` type was added to `src/auth/types.ts` as a type only. The task's design constraints explicitly allow this, even though the task's "Files touched" line omits the file.
+  - The test does not import or mock `aws-jwt-verify`. It signs RS256 tokens locally with `node:crypto`. The vacuous `globalThis.fetch` stub test is gone.
+  - No other test sends a token to a real verifier: `app.test.ts` and `auth.test.ts` use fakes, and `server.test.ts` sends no Bearer token. The unmutated suite makes no network calls.
+- The whole branch was reviewed in round 1 (see that round's REVIEW in git history: `git show c101b0e:docs/REVIEW.md`). Outside the files listed above, nothing in `src/`, `infra/`, `scripts/` or `test/` has changed since then. No `.gitignore`, CI, editor or `.gitattributes` changes in this round.
+- Mutation testing of the fix-round files, using `kukulu_mutate` with the `vitest` target on `test/jwt-verifier.test.ts` and `confirmKill: true`. Every kill was confirmed: the unmutated test file passes 6/6.
 
 | File | Mutation | Result |
 |---|---|---|
-| `src/auth/index.ts` | final unknown-name `unauthorized` → `next()` | killed (auth.test) |
-| `src/auth/index.ts` | drop `WWW-Authenticate` | killed (auth.test) |
-| `src/config.ts` | equal endpoint names check → `if (false)` | killed (config.test) |
-| `src/env-info.ts` | drop `requestCount += 1` | killed (env-info.test) |
-| `src/app.ts` | remove auth middleware | killed (app.test) |
-| `src/routes/whoami.ts` | `subject` → `null` | killed (app.test) |
-| `src/routes/stream.ts` | remove `res.on('close')` clear | killed (stream.test) |
-| `src/routes/stream.ts` | `>=` → `>` on last tick | killed (stream.test) |
-| `src/server.ts` | remove SIGTERM `setTimeout` fallback | killed (server.test) |
-| `scripts/build.sh` | `--format=cjs` → `esm` | killed (bundle.test) |
-| `infra/app.yaml` | `EndpointName: iam` → `iam-x` | killed (infra.test pairing) |
-| `src/auth/jwt-verifier.ts` | `tokenUse: 'access'` → `'id'` | **survived** |
-| `src/auth/jwt-verifier.ts` | `tokenUse` → `null` | **survived** |
-| `src/auth/jwt-verifier.ts` | `clientId` → `null` | **survived** |
-| `src/auth/jwt-verifier.ts` | `sub: payload.sub` → `String(payload.username)` | **survived** |
-| `src/auth/jwt-verifier.ts` | add eager `inner.hydrate().catch(() => {})` | **survived** |
+| `src/auth/jwt-verifier.ts` | `tokenUse: 'access'` → `'id'` | killed ("resolves a valid access token to its sub", "rejects an id token") |
+| `src/auth/jwt-verifier.ts` | `tokenUse` → `null` | killed ("rejects an id token") |
+| `src/auth/jwt-verifier.ts` | `clientId` → `null` | killed ("rejects a token for another client id") |
+| `src/auth/jwt-verifier.ts` | `sub: payload.sub` → `String(payload.username)` | killed ("resolves a valid access token to its sub") |
+| `src/auth/jwt-verifier.ts` | add eager `inner.hydrate().catch(() => {})` | killed ("does not fetch the JWKS at creation") |
+| `src/auth/jwt-verifier.ts` | remove the `cacheJwks` pre-load | killed ("resolves a valid access token to its sub") |
+
+`src/auth/types.ts` changed only by gaining a type, so there was nothing to mutate there.
 
 ## Findings
 
-### 1. (Category 3, tests) The JWT adapter's SPEC-required behaviour is untested, and its "no JWKS fetch" test cannot fail. Task R1-01
-
-- **Where:** `src/auth/jwt-verifier.ts:5-14`, `test/jwt-verifier.test.ts:5-30`.
-- **What is wrong:** SPEC section 4 requires the adapter to build `CognitoJwtVerifier` with `tokenUse: "access"` and `clientId`, and to return the token's `sub` (section 6). None of this is tested. All five mutants in the table above survived the full test suite, including `tokenUse: 'id'` and `clientId: null`. Both still type-check, because aws-jwt-verify's types accept `null` for each.
-  The test `rejects a malformed token without fetching a JWKS` stubs `globalThis.fetch`. On Node, aws-jwt-verify 5.2.1 does not use global `fetch`: `dist/esm/node-web-compat-node.js` imports its fetcher from `https-node.js`, which calls `node:https` `request`. The assertion `fetchStub` was "never called" therefore always holds. A malformed token also fails at parse time, before any JWKS lookup. The eager-`hydrate()` mutant shows the effect: it makes a real outbound HTTPS request during `createJwtVerifier`, and the test still passes. The test guards nothing.
-- **What would break:** a regression to `tokenUse: 'id'`, or a dropped `clientId`, would let ID tokens or tokens from another app client through on the `public` endpoint. That weakens the auth the whole SPEC hinges on (principles 2 and 3), and nothing before the manual phase 3 smoke test would catch it. A regression to eager JWKS fetching would make tests touch the network, which the SPEC section 2 non-goal forbids, and nothing would catch that either.
-- **Minimal fix:** give the adapter an offline seam through its own API so a test can run a real `verify` with a local key. For example, an optional second parameter that pre-loads a JWKS through the inner verifier's `cacheJwks`, in the same dependency-injection style as `createApp(config, deps)`. Then replace the vacuous fetch-stub test with tests that sign tokens locally using an RSA key from `node:crypto`. The seam must not be an env var, a bypass flag or a test-only branch.
+None. Categories 1 to 3 are clean across the branch, and there are no blocked tasks.
 
 ## Spec issues
 
-- PLAN P1-02 tells the tests to prove "no JWKS fetch" by stubbing `globalThis.fetch`. That is the wrong seam for aws-jwt-verify 5.x on Node, which fetches through `node:https`. A future plan should prescribe an injected JWKS or fetcher instead.
-- SPEC section 1 says `Ref` on `AWS::Lambda::WebFunction` returns the ARN, so the `FunctionName` output (`!Ref HelloFunction`, as SPEC section 4 specifies) holds an ARN, not a name. This does no harm, but the output name is misleading. SPEC could use a `GetAtt` for the name, if the resource has one, or rename the output.
-- PLAN P1-03's acceptance case `'iam '` (trailing space) cannot be sent over HTTP, because the parser trims header values. The implementer used `'IAM'`, `'iam2'` and `'Public'` instead, which is a sound substitute.
+Carried over from round 1. None of these blocks approval.
+
+- PLAN P1-02 prescribed proving "no JWKS fetch" by stubbing `globalThis.fetch`. That is the wrong seam for aws-jwt-verify 5.x on Node, which fetches through `node:https`. R1-01 fixed the test. A future plan should prescribe an injected JWKS instead.
+- `Ref` on `AWS::Lambda::WebFunction` returns the ARN, so the `FunctionName` output (`!Ref HelloFunction`, as SPEC section 4 specifies) holds an ARN, not a name. The output name is misleading.
+- PLAN P1-03's acceptance case `'iam '` (with a trailing space) cannot be sent over HTTP, because the parser trims header values. The substitutes the implementer chose (`IAM`, `iam2`, `Public`) are sound.
 
 ## Manual checks still owed
 
-All NOT VERIFIED (human), copied from HANDOFF.md:
+All are NOT VERIFIED (human), copied from HANDOFF.md:
 
-- Phase 1: `npm run dev`; iam `/whoami` 200 (authMode iam, subject null); public without token 401 with `WWW-Authenticate: Bearer`; no header 401; `curl -N` on `/stream` shows ticks one at a time. (The implementer did run `npm run dev` and saw `/whoami` return 200 on iam.)
-- Phase 2: `npm run deploy` succeeds in us-west-2; function `lwf-hello` has one revision and two Active endpoints (`iam`, `public`).
-- Phase 3: `create-test-user` prints a token; `smoke:iam` and `smoke:jwt` exit 0; `/whoami` shows a shared `envId` and rising `requestCount` on both endpoints; logs in `/aws/lambda/web/lwf-hello`; `npm run teardown` removes both stacks.
+- Phase 1:
+  - Run `npm run dev`.
+  - On the `iam` endpoint, `/whoami` returns 200 with authMode `iam` and subject `null`.
+  - On `public` without a token: 401 with `WWW-Authenticate: Bearer`.
+  - With no endpoint header: 401.
+  - `curl -N` on `/stream` shows the ticks arriving one at a time.
+- Phase 2: `npm run deploy` succeeds in us-west-2. Function `lwf-hello` has one revision and two Active endpoints (`iam`, `public`).
+- Phase 3:
+  - `create-test-user` prints a token.
+  - `smoke:iam` and `smoke:jwt` exit 0.
+  - `/whoami` shows a shared `envId` and a rising `requestCount` on both endpoints.
+  - Logs appear in `/aws/lambda/web/lwf-hello`.
+  - `npm run teardown` removes both stacks.
 
 `scripts/smoke-iam.ts`, `smoke-jwt.sh`, `create-test-user.sh`, `deploy.sh` and `teardown.sh` were only syntax-checked and usage-tested. None was run against AWS.
 
+R1-01 adds no manual checks.
+
 ## Notes
 
-- The HANDOFF interpretation choices are all consistent with SPEC and PLAN: `STREAM_INTERVAL_MS=0` is accepted, an empty endpoint header counts as missing, empty commits were used for the phase-end tasks, and the stream timing test allows 5 ms of slack. The slack hardly matters, because the first-to-last span is about 80 ms against a 35 ms floor.
-- The shell scripts' AWS logic is covered only by `bash -n`, the usage-exit tests and text checks. That is by design (no-AWS rule), and the phase 3 manual checks cover it.
-- On the `public` endpoint the auth middleware exempts `req.path === '/health'` exactly. Express routing is case-insensitive, so `/HEALTH` reaches the health route but still needs a token. That fails closed, so it is acceptable.
+- `src/auth/jwt-verifier.ts:15` casts the `Jwks` type through `unknown` to the library's parameter type. This keeps `aws-jwt-verify` types out of `src/auth/types.ts`, as the boundary requires. The cost is that a malformed JWKS passed by a caller would not be caught at compile time. Only tests pass it, so this is acceptable.
+- In the "does not fetch the JWKS at creation" test, the spy on `net.Socket.prototype.connect` returns without connecting. Under the eager-hydrate mutant, that leaves pending sockets until the request times out. This only happens under mutation and does not affect the real suite.
+- The CLAUDE.md module map is now out of date in two rows. The `src/auth/jwt-verifier.ts` row still reads `createJwtVerifier(settings)`, and the `src/auth/types.ts` row does not list `Jwks`. R1-01 did not have CLAUDE.md in its files, so this is not a finding. The summarizer can carry it forward.
+- When `cacheJwks` was removed, the mutant made a real HTTPS request to Cognito (it got a 404). That is expected: it shows the injected JWKS is what keeps the real suite offline.
