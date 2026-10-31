@@ -1,0 +1,351 @@
+{
+  "verify": [
+    "npm run typecheck",
+    "npm run lint",
+    "npm test",
+    { "cmd": "npm run build", "from": "P2-01" }
+  ],
+  "extraVerify": {
+    "template.yaml": [{ "cmd": "cfn-lint template.yaml", "from": "P2-01" }]
+  },
+  "build": ["npm run build"],
+  "baseBranch": "flight/sam",
+  "branchPrefix": "build/",
+  "maxRounds": 3,
+  "maxRoundsHard": 6,
+  "flight": "sam-two-functions",
+  "mutation": {
+    "targeted": {
+      "vitest": { "cmd": "npx vitest run {filter}" }
+    }
+  },
+  "constraints": [
+    {
+      "id": "process-env-only-in-config",
+      "description": "SPEC section 3 principle 1: process.env appears only in src/config.ts. loadConfig takes an env object so tests never touch process.env; child processes get a literal env or inherit; scripts/smoke-iam.ts takes its inputs from argv.",
+      "paths": ["src/", "test/", "scripts/", "vitest.config.ts", "eslint.config.js"],
+      "exclude": ["src/config.ts"],
+      "pattern": "\\bprocess\\s*(\\.\\s*env\\b|\\[\\s*['\"]env['\"]\\s*\\])|\\{\\s*env\\b[^}]*\\}\\s*=\\s*process\\b",
+      "shouldMatch": [
+        "const region = process.env.AWS_REGION;",
+        "const { AUTH_MODE } = process.env;",
+        "spawn(cmd, args, { env: { ...process.env, AUTH_MODE: 'iam' } });",
+        "const e = process['env'];",
+        "const { env } = process;"
+      ],
+      "shouldNotMatch": [
+        "const config = loadConfig({ AUTH_MODE: 'iam' });",
+        "const env = options.env;",
+        "spawn(process.execPath, [entry], { env: childEnv });"
+      ]
+    },
+    {
+      "id": "no-lambda-web-prefix",
+      "description": "SPEC section 3 principle 3: lambda-web- appears nowhere in src/ or template.yaml (case-insensitive), comments included. No lambda-web-* header is read for auth or routing.",
+      "paths": ["src/", "template.yaml"],
+      "pattern": "lambda-web-",
+      "flags": "i",
+      "from": "P1-01",
+      "shouldMatch": [
+        "const name = req.get('lambda-web-endpoint-name');",
+        "const name = req.headers['Lambda-Web-Endpoint-Name'];",
+        "const id = req.get('lambda-web-request-id');",
+        "// routes on the lambda-web-endpoint-name header"
+      ],
+      "shouldNotMatch": [
+        "    Type: AWS::Serverless::WebFunction",
+        "// logs go to /aws/lambda/web/lwf-iam",
+        "const auth = res.locals.auth as AuthContext;"
+      ]
+    },
+    {
+      "id": "no-auth-bypass-mode",
+      "description": "SPEC section 3 principle 2: AUTH_MODE accepts exactly iam and jwt; there is no auth disabled / none / off / skip mode or bypass flag anywhere in src/.",
+      "paths": ["src/"],
+      "pattern": "\\b(skipAuth|disableAuth|authDisabled|bypassAuth|noAuth|AUTH_DISABLED|AUTH_ENABLED|AUTH_BYPASS)\\b|['\"](none|off|skip|disabled)['\"]",
+      "shouldMatch": [
+        "if (config.skipAuth) return next();",
+        "authMode: 'none',",
+        "case \"off\":",
+        "const disabled = env.AUTH_DISABLED === 'true';",
+        "type AuthMode = 'iam' | 'jwt' | 'disabled';",
+        "if (mode === 'skip') return next();"
+      ],
+      "shouldNotMatch": [
+        "const mode = required(env, 'AUTH_MODE');",
+        "authMode: 'iam',",
+        "res.set('Cache-Control', 'no-cache');",
+        "export type AuthMode = 'iam' | 'jwt';"
+      ]
+    },
+    {
+      "id": "template-auth-mode-iam-or-jwt",
+      "description": "SPEC section 3 principles 2 and 7: every AUTH_MODE value in template.yaml is the literal iam or jwt, never another word, a parameter or an empty value.",
+      "paths": ["template.yaml"],
+      "pattern": "\\bAUTH_MODE\\s*:(?!\\s*['\"]?(iam|jwt)['\"]?\\s*([,}]|$))",
+      "shouldMatch": [
+        "        AUTH_MODE: none",
+        "        AUTH_MODE: !Ref AuthMode",
+        "        AUTH_MODE: IAM",
+        "        AUTH_MODE: ''",
+        "      EnvironmentVariables: {AUTH_MODE: off}"
+      ],
+      "shouldNotMatch": [
+        "        AUTH_MODE: iam",
+        "        AUTH_MODE: jwt",
+        "        AUTH_MODE: \"jwt\"",
+        "      EnvironmentVariables: {AUTH_MODE: iam}",
+        "      EnvironmentVariables: {AUTH_MODE: jwt, COGNITO_USER_POOL_ID: !Ref UserPool}"
+      ]
+    },
+    {
+      "id": "no-endpoint-name-config",
+      "description": "SPEC section 5: AUTH_ENDPOINT_IAM and AUTH_ENDPOINT_JWT are removed, together with the endpoint-name config keys and the AuthEndpoints type. Active from P1-02, the task that rewires the dev script and README rows. test/infra.test.ts is excluded because it tests the 0.1 infra/ templates and is deleted with them in P2-02.",
+      "paths": ["src/", "test/", "scripts/", "template.yaml", "package.json", "README.md"],
+      "exclude": ["test/infra.test.ts"],
+      "pattern": "AUTH_ENDPOINT_(IAM|JWT)|\\b(iamEndpointName|jwtEndpointName|AuthEndpoints)\\b",
+      "from": "P1-02",
+      "shouldMatch": [
+        "const iam = required(env, 'AUTH_ENDPOINT_IAM');",
+        "    \"dev\": \"AUTH_ENDPOINT_IAM=iam AUTH_ENDPOINT_JWT=public node dist/index.js\",",
+        "if (endpoint === endpoints.iamEndpointName) {",
+        "import type { AuthEndpoints } from './types.ts';",
+        "| `AUTH_ENDPOINT_JWT` | `auth.jwtEndpointName` | required |"
+      ],
+      "shouldNotMatch": [
+        "const mode = required(env, 'AUTH_MODE');",
+        "    \"dev\": \"AUTH_MODE=iam node dist/index.js\",",
+        "| `AUTH_MODE` | `auth.mode` | required |"
+      ]
+    },
+    {
+      "id": "jwt-lib-only-in-adapter",
+      "description": "SPEC section 3 principle 4: only src/auth/jwt-verifier.ts imports (or mocks) aws-jwt-verify.",
+      "paths": ["src/", "test/", "scripts/"],
+      "exclude": ["src/auth/jwt-verifier.ts"],
+      "pattern": "['\"]aws-jwt-verify(/[^'\"]*)?['\"]",
+      "shouldMatch": [
+        "import { CognitoJwtVerifier } from 'aws-jwt-verify';",
+        "vi.mock(\"aws-jwt-verify\");",
+        "import { JwtExpiredError } from 'aws-jwt-verify/error';"
+      ],
+      "shouldNotMatch": [
+        "import { createJwtVerifier } from '../src/auth/jwt-verifier.ts';",
+        "// the adapter wraps aws-jwt-verify behind JwtVerifier"
+      ]
+    },
+    {
+      "id": "no-module-level-mutable-state",
+      "description": "SPEC section 3 principle 5: the only module-level mutable state in src/ is in src/env-info.ts. Catches top-level let/var and top-level Map/Set/Array instances; top-level object/array literals mutated later are checked by the reviewer by reading.",
+      "paths": ["src/"],
+      "exclude": ["src/env-info.ts"],
+      "pattern": "^(export\\s+)?(let|var)\\s|^(export\\s+)?const\\s+\\w+(\\s*:[^=]+)?\\s*=\\s*new\\s+(Map|Set|WeakMap|WeakSet|Array)\\b",
+      "shouldMatch": [
+        "let requestCount = 0;",
+        "export let current: string | null = null;",
+        "var cache = {};",
+        "const seen = new Map<string, number>();",
+        "export const pending: Set<string> = new Set();"
+      ],
+      "shouldNotMatch": [
+        "  let n = 0;",
+        "const app = express();",
+        "export const envId = randomUUID();",
+        "    const timers = new Set();"
+      ]
+    },
+    {
+      "id": "no-forwarded-host",
+      "description": "SPEC section 1 (Auth types): X-Forwarded-Host is forwarded unvalidated, so src/ never reads it and never enables Express trust proxy.",
+      "paths": ["src/"],
+      "pattern": "x-forwarded-host|trust proxy",
+      "flags": "i",
+      "shouldMatch": [
+        "const host = req.get('X-Forwarded-Host');",
+        "app.set('trust proxy', true);"
+      ],
+      "shouldNotMatch": [
+        "const auth = res.locals.auth as AuthContext;",
+        "app.disable('x-powered-by');"
+      ]
+    },
+    {
+      "id": "no-import-meta-in-src",
+      "description": "SPEC section 4: the deployed bundle is CommonJS (sam build, Format: cjs); esbuild empties import.meta in CJS output, so src/ never uses it.",
+      "paths": ["src/"],
+      "pattern": "\\bimport\\.meta\\b",
+      "shouldMatch": [
+        "if (import.meta.url === pathToFileURL(process.argv[1]).href) {",
+        "const here = dirname(fileURLToPath(import.meta.url));"
+      ],
+      "shouldNotMatch": [
+        "import { createApp } from './app.ts';",
+        "import type { Config } from './config.ts';"
+      ]
+    },
+    {
+      "id": "stream-tunables-only-in-config",
+      "description": "SPEC section 3 principle 8 and section 5: stream.ticks (5) and stream.intervalMs (500) are ASSUMPTION defaults that live only in src/config.ts; no script, npm script or template sets them.",
+      "paths": ["src/", "scripts/", "template.yaml", "samconfig.toml", "package.json"],
+      "exclude": ["src/config.ts"],
+      "pattern": "\\b(ticks|intervalMs|STREAM_TICKS|STREAM_INTERVAL_MS)['\"]?\\s*(\\?\\?|\\|\\||=|:)\\s*['\"]?[0-9]",
+      "shouldMatch": [
+        "const ticks = 5;",
+        "intervalMs: 500,",
+        "const n = config.stream.ticks ?? 5;",
+        "const ms = opts.intervalMs || 500;",
+        "STREAM_INTERVAL_MS: '500'",
+        "    \"dev\": \"STREAM_TICKS=5 node dist/index.js\",",
+        "        STREAM_TICKS: 5",
+        "'intervalMs': 500,"
+      ],
+      "shouldNotMatch": [
+        "const ticks = config.stream.ticks;",
+        "for (let n = 1; n <= config.stream.ticks; n++) {",
+        "const timer = setInterval(send, config.stream.intervalMs);",
+        "res.write(`data: ${JSON.stringify({ tick })}\\n\\n`);"
+      ]
+    },
+    {
+      "id": "listen-default-only-in-config",
+      "description": "SPEC section 3 principle 8 and section 5: the local listen default 127.0.0.1:3000 lives only in src/config.ts.",
+      "paths": ["src/", "scripts/"],
+      "exclude": ["src/config.ts"],
+      "pattern": "127\\.0\\.0\\.1|\\b3000\\b",
+      "shouldMatch": [
+        "const endpoint = env.AWS_LAMBDA_HTTP_ENDPOINT ?? '127.0.0.1:3000';",
+        "const host = '127.0.0.1';",
+        "port: 3000,",
+        "const port = Number(raw) || 3000;"
+      ],
+      "shouldNotMatch": [
+        "server.listen(config.listen.port, config.listen.host, onListening);",
+        "res.status(500).json({ error: 'internal' });",
+        "const graceMs = 30000;"
+      ]
+    },
+    {
+      "id": "dev-script-uses-listen-default",
+      "description": "SPEC section 3 principle 8 and section 5: npm run dev gets 127.0.0.1:3000 from the src/config.ts default, so package.json never spells port 3000 (dev:public's 127.0.0.1:3001 is allowed).",
+      "paths": ["package.json"],
+      "pattern": "\\b3000\\b",
+      "shouldMatch": [
+        "    \"dev\": \"AWS_LAMBDA_HTTP_ENDPOINT=127.0.0.1:3000 AUTH_MODE=iam node dist/index.js\",",
+        "    \"dev\": \"PORT=3000 node dist/index.js\","
+      ],
+      "shouldNotMatch": [
+        "    \"dev:public\": \"AUTH_MODE=jwt AWS_LAMBDA_HTTP_ENDPOINT=127.0.0.1:3001 node dist/index.js\",",
+        "    \"@types/node\": \"^24.19.2\","
+      ]
+    },
+    {
+      "id": "template-no-account-id",
+      "description": "SPEC section 3 principle 6: no 12-digit account IDs in template.yaml; use AWS::AccountId.",
+      "paths": ["template.yaml"],
+      "pattern": "[0-9]{12}",
+      "shouldMatch": [
+        "RoleArn: arn:aws:iam::123456789012:role/x",
+        "Principal: { AWS: '210987654321' }"
+      ],
+      "shouldNotMatch": [
+        "!Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/x",
+        "    Default: 100"
+      ]
+    },
+    {
+      "id": "template-no-region-literal",
+      "description": "SPEC section 3 principle 6: no Region literals in template.yaml; use AWS::Region. (samconfig.toml may name the default Region.)",
+      "paths": ["template.yaml"],
+      "pattern": "(us|eu|ap|sa|ca|me|af|il|mx)-[a-z]+-[0-9]",
+      "shouldMatch": [
+        "      Region: us-west-2",
+        "!Sub arn:aws:s3:::bucket-eu-central-1/*",
+        "    Value: ap-southeast-2"
+      ],
+      "shouldNotMatch": [
+        "!Sub \"${AWS::Region}\"",
+        "      Runtime: nodejs24.x",
+        "      EndpointType: HomeRegion"
+      ]
+    },
+    {
+      "id": "template-tunables-are-parameters",
+      "description": "SPEC section 3 principle 8 and section 5: Timeout, MaxConcurrencyPerEnvironment, MaxEnvironments, RateLimit and ApplicationLogLevel get their values only from template.yaml Parameters (Default:) via !Ref, never a literal in Resources, samconfig.toml, a script or an npm script.",
+      "paths": ["template.yaml", "samconfig.toml", "scripts/", "package.json"],
+      "pattern": "\\b(Timeout|TimeoutSeconds|MaxConcurrencyPerEnvironment|MaxEnvironments|RateLimit|ApplicationLogLevel)['\"]?\\s*[:=]\\s*['\"]?[0-9A-Z]|ParameterKey=(TimeoutSeconds|MaxConcurrencyPerEnvironment|MaxEnvironments|RateLimit|ApplicationLogLevel),ParameterValue=['\"]?[0-9A-Z]",
+      "shouldMatch": [
+        "        RateLimit: 100",
+        "      ScalingConfig: { MaxEnvironments: 2 }",
+        "        ApplicationLogLevel: INFO",
+        "      Timeout: 30",
+        "      TimeoutSeconds: '30'",
+        "parameter_overrides = \"MaxEnvironments=2 RateLimit=100\"",
+        "    \"deploy\": \"sam build && sam deploy --parameter-overrides MaxEnvironments=4\",",
+        "ParameterKey=RateLimit,ParameterValue=100"
+      ],
+      "shouldNotMatch": [
+        "        RateLimit: !Ref RateLimit",
+        "  MaxEnvironments:",
+        "      Timeout: !Ref TimeoutSeconds",
+        "      MaxConcurrencyPerEnvironment: !Ref MaxConcurrencyPerEnvironment",
+        "    Default: 2",
+        "  const t = setTimeout(() => process.exit(0), deadline);"
+      ]
+    },
+    {
+      "id": "tests-never-call-aws",
+      "description": "SPEC section 2 non-goal and section 3 principle 9: no file under test/ invokes the aws CLI, sam deploy, sam delete, or creates an AWS SDK client. sam build runs only through npm run build.",
+      "paths": ["test/"],
+      "pattern": "@aws-sdk/|\\bnew\\s+[A-Z]\\w*Client\\s*\\(|\\b(spawn|spawnSync|exec|execSync|execFile|execFileSync)\\s*\\(\\s*['\"\\x60](aws|sam)\\b|['\"\\x60]-c['\"\\x60]\\s*,\\s*['\"\\x60][^'\"\\x60]*\\b(aws|sam)\\s+(s3|s3api|cloudformation|cognito-idp|lambda|sts|iam|build|deploy|delete|sync)\\b",
+      "shouldMatch": [
+        "import { S3Client } from '@aws-sdk/client-s3';",
+        "const client = new CloudFormationClient({});",
+        "execSync('aws cloudformation describe-stacks');",
+        "spawnSync('aws', ['sts', 'get-caller-identity']);",
+        "spawnSync('sam', ['deploy', '--no-confirm-changeset']);",
+        "spawnSync('bash', ['-c', 'sam delete --no-prompts']);",
+        "execSync(`sam build`, { cwd: root });"
+      ],
+      "shouldNotMatch": [
+        "const build = spawnSync('npm', ['run', 'build'], { cwd: root, encoding: 'utf8' });",
+        "expect(pkg.scripts.teardown).toBe('sam delete --no-prompts');",
+        "expect(fn.Type).toBe('AWS::Serverless::WebFunction');",
+        "const text = readFileSync(join(root, 'template.yaml'), 'utf8');",
+        "const r = spawnSync('bash', ['-n', file], { encoding: 'utf8' });"
+      ]
+    },
+    {
+      "id": "section7-commands-never-call-aws",
+      "description": "SPEC section 3 principle 9: no section 7 command (the typecheck, lint, test and build npm scripts) invokes the aws CLI, sam deploy, sam delete or sam sync.",
+      "paths": ["package.json"],
+      "pattern": "\"(build|test|typecheck|lint)\"\\s*:\\s*\"[^\"]*(\\baws\\s|\\bsam\\s+(deploy|delete|sync)\\b)",
+      "shouldMatch": [
+        "    \"build\": \"sam build && sam deploy\",",
+        "    \"test\": \"vitest run && aws sts get-caller-identity\",",
+        "    \"build\": \"sam build && sam sync --watch\","
+      ],
+      "shouldNotMatch": [
+        "    \"build\": \"sam build\",",
+        "    \"deploy\": \"sam build && sam deploy\",",
+        "    \"teardown\": \"sam delete --no-prompts\",",
+        "    \"test\": \"vitest run\","
+      ]
+    },
+    {
+      "id": "no-global-install",
+      "description": "SPEC section 7: esbuild stays a devDependency and nothing is installed globally; no npm script, script or README step runs a global npm install.",
+      "paths": ["package.json", "scripts/", "README.md"],
+      "pattern": "\\bnpm\\s+(i|install|add)\\b.*\\s(-g|--global)\\b",
+      "shouldMatch": [
+        "npm install -g esbuild",
+        "npm i --global esbuild",
+        "    \"prebuild\": \"npm install esbuild -g\","
+      ],
+      "shouldNotMatch": [
+        "npm ci",
+        "npm install --save-dev esbuild",
+        "npm run build"
+      ]
+    }
+  ]
+}
