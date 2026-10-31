@@ -1,11 +1,11 @@
 # Lambda Web Functions Hello World
 
-A TypeScript Express 5 hello world deployed with AWS SAM. Two Lambda Web Functions run the same code with different auth modes because SAM generates one endpoint per function:
+A TypeScript Express 5 hello world deployed with AWS SAM as two Lambda Web Functions that run the same code (SAM generates one endpoint per function):
 
-- `lwf-iam`: endpoint `iam`, `AuthType: IamAuth`. Lambda checks the SigV4 signature. The app receives no caller identity.
-- `lwf-public`: endpoint `public`, `AuthType: ApplicationManaged`. The app verifies a Cognito access token (JWT) itself.
+- `lwf-iam`: endpoint `iam`, `AuthType: IamAuth`, `AUTH_MODE=iam`. Lambda checks the SigV4 signature; the app receives no caller identity.
+- `lwf-public`: endpoint `public`, `AuthType: ApplicationManaged`, `AUTH_MODE=jwt`. The app verifies a Cognito access token (JWT) itself.
 
-The template sets `AUTH_MODE` to `iam` or `jwt`; missing or unknown values stop the app at startup.
+A missing or unknown `AUTH_MODE` stops the app at startup.
 
 ## Routes
 
@@ -51,9 +51,7 @@ npm run build
 cfn-lint template.yaml
 ```
 
-None of these commands call AWS.
-
-Use the npm build/deploy commands so SAM can find the local esbuild dependency.
+None of these call AWS. Build and deploy through npm (not bare `sam`) so SAM finds the local esbuild.
 
 ## Deploy
 
@@ -61,7 +59,7 @@ Use the npm build/deploy commands so SAM can find the local esbuild dependency.
 npm run deploy
 ```
 
-`samconfig.toml` sets the stack name (`lwf`) and Region (`us-west-2`). SAM also manages a code bucket stack.
+`samconfig.toml` sets the stack name (`lwf`) and Region (`us-west-2`).
 
 ## Test the deployment
 
@@ -71,11 +69,11 @@ TOKEN=$(npm run --silent create-test-user -- you@example.com)
 npm run smoke:jwt -- "$TOKEN"
 ```
 
-The IAM smoke test signs requests and checks that unsigned calls return 403. The JWT smoke test checks access with and without a token. Replace `you@example.com` with your test email. `npm run create-test-user` creates the user or resets the existing user's password and returns a fresh token.
+`npm run create-test-user` creates the user (or resets its password) and prints a fresh access token. `npm run smoke:iam` signs requests and checks that unsigned calls get 403. `npm run smoke:jwt` checks access with and without the token.
 
 ## Environment reuse
 
-Call `/whoami` several times on each endpoint: while `envId` stays the same, `requestCount` rises (a new `envId` means a different environment served the call). The two functions have separate environments, so their `envId`s differ.
+Call `/whoami` repeatedly: `requestCount` rises while `envId` stays the same, and a new `envId` means a different environment answered. Each function has its own environments.
 
 ## Logs
 
@@ -87,11 +85,11 @@ Logs go to `/aws/lambda/web/lwf-iam` and `/aws/lambda/web/lwf-public`.
 npm run teardown
 ```
 
-Deletes the app stack, then empties and deletes the code bucket stack.
+Deletes the app stack, then empties and deletes the code bucket stack SAM created on the first deploy.
 
 ## Configuration and cost
 
-See [src/config.ts](src/config.ts) for app configuration and [template.yaml](template.yaml) for deployment parameters. `MaxEnvironments` and `RateLimit` limit each function separately. Tear down when done experimenting.
+App settings live in [src/config.ts](src/config.ts) and deployment parameters in [template.yaml](template.yaml); `MaxEnvironments` and `RateLimit` apply to each function separately.
 
 ## Future experiments
 
