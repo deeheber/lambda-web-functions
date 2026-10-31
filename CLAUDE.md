@@ -39,7 +39,7 @@ A TypeScript Express 5 app deployed as two AWS Lambda Web Functions defined with
 | `src/routes/{health,whoami,stream}.ts` | `healthHandler`, `whoamiHandler`, `createStreamHandler(settings)` |
 | `template.yaml` | SAM: Cognito pool + client, `IamFunction` and `PublicFunction` (`AWS::Serverless::WebFunction`), parameters, outputs |
 | `samconfig.toml` | Stack `lwf`, Region `us-west-2`, `resolve_s3`, `CAPABILITY_IAM`, no changeset prompt |
-| `scripts/env.sh` | Sourced: `STACK_NAME`, `AWS_REGION` (from `samconfig.toml` after P3-01), `stack_output` |
+| `scripts/env.sh` | Sourced: `STACK_NAME`, `AWS_REGION` (from `samconfig.toml`), `stack_output` |
 | `scripts/create-test-user.sh`, `scripts/smoke-jwt.sh`, `scripts/smoke-iam.ts` | Manual smoke-test tooling |
 | `test/` | vitest + supertest; reads `template.yaml`, `samconfig.toml` and `scripts/` as files only |
 
