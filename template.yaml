@@ -65,6 +65,7 @@ Resources:
       CodeUri: ./
       EntryPoint: src/server.ts
       EndpointName: iam
+      EndpointDescription: Hello world endpoint with IAM authentication.
       EndpointType: HomeRegion
       AuthType: IamAuth
       Timeout: !Ref TimeoutSeconds
@@ -94,6 +95,7 @@ Resources:
       CodeUri: ./
       EntryPoint: src/server.ts
       EndpointName: public
+      EndpointDescription: Hello world endpoint with application-managed Cognito JWT authentication.
       EndpointType: HomeRegion
       AuthType: ApplicationManaged
       Timeout: !Ref TimeoutSeconds
