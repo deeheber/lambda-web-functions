@@ -52,7 +52,7 @@ Boundaries: `src/` never imports from `scripts/`, `infra/` or `test/`; `scripts/
 Each line marked (kukulu.json: id) is enforced by `kukulu_verify` from `docs/kukulu.json`.
 
 - No `process.env` outside `src/config.ts` in `src/`, `test/`, `scripts/`, `vitest.config.ts`, `eslint.config.js` (kukulu.json: `process-env-only-in-config`).
-- No `lambda-web-endpoint-name` in `src/` outside `src/auth/index.ts` (kukulu.json: `endpoint-header-only-in-auth`).
+- No `lambda-web-endpoint-name` in `src/` outside `src/auth/index.ts`, comments included (kukulu.json: `endpoint-header-only-in-auth`).
 - No auth bypass flag or `'none'`/`'off'`/`'skip'`/`'disabled'` mode string in `src/` (kukulu.json: `no-auth-bypass-mode`).
 - No `aws-jwt-verify` import or mock outside `src/auth/jwt-verifier.ts` (kukulu.json: `jwt-lib-only-in-adapter`).
 - No top-level `let`/`var` or top-level `Map`/`Set`/`Array` instance in `src/` outside `src/env-info.ts` (kukulu.json: `no-module-level-mutable-state`). Top-level object/array literals that get mutated: reviewer checks by reading.
