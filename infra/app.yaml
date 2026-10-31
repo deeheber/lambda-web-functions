@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Lambda Web Function hello world with an IAM endpoint and a public (Cognito JWT) endpoint
+
+Parameters:
+  CodeBucket:
+    Type: String
+    Description: S3 bucket holding the deployment zip (from the artifacts stack)
+  CodeKey:
+    Type: String
+    Description: S3 key of the deployment zip. A new key creates a new revision
+  TimeoutSeconds:
+    Type: Number
+    Default: 30
+    MinValue: 3
+    MaxValue: 900
+  MaxConcurrencyPerEnvironment:
+    Type: Number
+    Default: 64
+    MinValue: 1
+    MaxValue: 128
+  MaxEnvironments:
+    Type: Number
+    Default: 2
+    MinValue: 2
+    Description: ASSUMPTION - cost cap for experimenting
+  RateLimit:
+    Type: Number
+    Default: 100
+    AllowedValues: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+    Description: ASSUMPTION - requests per second per endpoint
+  ApplicationLogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [TRACE, DEBUG, INFO, WARN, ERROR, FATAL]
+
+Resources:
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  HelloFunction:
+    Type: AWS::Lambda::WebFunction
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-hello"
+
+  HelloRevision:
+    Type: AWS::Lambda::WebFunctionRevision
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Properties:
+      FunctionName: !Ref HelloFunction
+      BuildConfig:
+        CodeConfig:
+          S3Object:
+            Bucket: !Ref CodeBucket
+            Key: !Ref CodeKey
+        RuntimeConfig:
+          Runtime: nodejs24.x
+      ServiceConfig:
+        ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+        TimeoutSeconds: !Ref TimeoutSeconds
+        MaxConcurrencyPerEnvironment: !Ref MaxConcurrencyPerEnvironment
+        TelemetryConfig:
+          LoggingConfig:
+            ApplicationLogLevel: !Ref ApplicationLogLevel
+        EnvironmentVariables:
+          AUTH_ENDPOINT_IAM: iam
+          AUTH_ENDPOINT_JWT: public
+          COGNITO_USER_POOL_ID: !Ref UserPool
+          COGNITO_CLIENT_ID: !Ref UserPoolClient
+
+  IamEndpoint:
+    Type: AWS::Lambda::WebFunctionEndpoint
+    Properties:
+      FunctionName: !Ref HelloFunction
+      EndpointName: iam
+      EndpointType: HomeRegion
+      AuthType: IamAuth
+      RevisionWeights:
+        - RevisionId: !GetAtt HelloRevision.RevisionId
+          Weight: 100
+      ScalingConfig:
+        MaxEnvironments: !Ref MaxEnvironments
+      ThrottleConfig:
+        RateLimit: !Ref RateLimit
+
+  PublicEndpoint:
+    Type: AWS::Lambda::WebFunctionEndpoint
+    Properties:
+      FunctionName: !Ref HelloFunction
+      EndpointName: public
+      EndpointType: HomeRegion
+      AuthType: ApplicationManaged
+      RevisionWeights:
+        - RevisionId: !GetAtt HelloRevision.RevisionId
+          Weight: 100
+      ScalingConfig:
+        MaxEnvironments: !Ref MaxEnvironments
+      ThrottleConfig:
+        RateLimit: !Ref RateLimit
+
+Outputs:
+  FunctionName:
+    Value: !Ref HelloFunction
+  IamEndpointUrl:
+    Value: !Sub "https://${IamEndpoint.DomainName}"
+  PublicEndpointUrl:
+    Value: !Sub "https://${PublicEndpoint.DomainName}"
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Value: !Ref UserPoolClient

@@ -14,24 +14,10 @@
   },
   "signing": null,
   "rounds": [],
-  "timeline": [
-    {
-      "event": "start",
-      "stage": "plan",
-      "round": 0,
-      "at": "2026-10-31T17:49:06.992Z"
-    },
-    {
-      "event": "end",
-      "stage": "plan",
-      "round": 0,
-      "at": "2026-10-31T18:07:31.211Z"
-    },
-    {
-      "event": "start",
-      "stage": "implement",
-      "round": 0,
-      "at": "2026-10-31T18:07:31.211Z"
-    }
-  ]
+  "archived": {
+    "slug": "init-setup",
+    "dir": "docs/flights/init-setup",
+    "at": "2026-10-31T18:25:41.256Z"
+  },
+  "breaking": false
 }
