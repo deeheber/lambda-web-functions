@@ -66,6 +66,20 @@ describe('createApp', () => {
     expect(second.body.requestCount).toBe(first.body.requestCount + 1);
   });
 
+  it('requestCount counts rejected requests', async () => {
+    const a = jwtApp();
+    const first = await request(a).get('/whoami').set('Authorization', 'Bearer good-token');
+    const rejected = await request(a).get('/whoami');
+    expect(rejected.status).toBe(401);
+    const third = await request(a).get('/whoami').set('Authorization', 'Bearer good-token');
+    expect(third.body.requestCount).toBe(first.body.requestCount + 2);
+  });
+
+  it('does not send X-Powered-By', async () => {
+    const res = await request(iamApp()).get('/health');
+    expect(res.headers['x-powered-by']).toBeUndefined();
+  });
+
   it('unknown path returns 404 not_found in iam mode', async () => {
     const res = await request(iamApp()).get('/nope');
     expect(res.status).toBe(404);
@@ -106,6 +120,22 @@ describe('errorHandler', () => {
     expect(res.status).toBe(500);
     expect(res.body).toEqual({ error: 'internal' });
     expect(res.text).not.toContain('secret detail');
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('ends the response when headers were already sent', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const a = express();
+    a.get('/late', (_req, res, next) => {
+      res.status(200);
+      res.write('partial');
+      next(new Error('late'));
+    });
+    a.use(notFoundHandler);
+    a.use(errorHandler);
+    const res = await request(a).get('/late');
+    expect(res.status).toBe(200);
+    expect(res.text).toBe('partial');
     expect(spy).toHaveBeenCalled();
   });
 });
