@@ -1,5 +1,8 @@
 # Lambda Web Functions Hello World
 
+> [!WARNING]
+> **Don't deploy this version yet.** `infra/artifacts.yaml` creates the code bucket without versioning and without a bucket policy that lets Lambda read the code, and the AWS docs require both for Web Functions. `npm run deploy` is expected to fail when it creates the revision. This version has not been deployed. A follow-up moves the infrastructure to AWS SAM, whose code bucket meets both requirements; use that once it lands.
+
 A TypeScript Express 5 app deployed as **one AWS Lambda Web Function with two endpoints**, defined in plain CloudFormation. It is a learning reference: a hello world to build more complex things from.
 
 - One `AWS::Lambda::WebFunction`, one `AWS::Lambda::WebFunctionRevision`, two `HomeRegion` endpoints, each sending 100% of traffic to that revision.
