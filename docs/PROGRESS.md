@@ -7,7 +7,7 @@ Started: 2026-10-31T19:05:25.860Z
 
 - [x] P1-01 Switch auth to AUTH_MODE across config, middleware, app and server
 - [x] P1-02 Add dev and dev:public scripts
-- [ ] P1-03 Phase 1 end: push and list manual checks
+- [x] P1-03 Phase 1 end: push and list manual checks
 - [ ] P2-01 Add the SAM template, samconfig and sam build
 - [ ] P2-02 Wire deploy and teardown to the SAM CLI and delete the 0.1 build
 - [ ] P2-03 Phase 2 end: push and list manual checks
@@ -26,3 +26,12 @@ AUTH_MODE union in config (AuthConfig exported), authMiddleware(auth, verifier?)
 ### P1-02 — f4f6ba5
 
 dev (iam) and dev:public (jwt, 127.0.0.1:3001) scripts added; README local-dev and config table updated (line 11 header prose left for P3-02). Tests added in scripts.test.ts.
+
+### P1-03 — df67a4a
+
+Push: done (origin build/2026-10-31).
+Manual check: NOT VERIFIED (human)
+- `npm run dev`, then `curl localhost:3000/whoami` -> 200 with authMode: iam, subject: null.
+- `curl -N localhost:3000/stream` -> ticks arrive one at a time.
+- `npm run dev:public`, then `curl -i localhost:3001/whoami` -> 401 with WWW-Authenticate: Bearer; `curl -i localhost:3001/health` -> 200.
+- Starting with AUTH_MODE=none fails at startup.
