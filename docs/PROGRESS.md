@@ -16,7 +16,7 @@ Started: 2026-10-31T18:07:39.064Z
 - [x] P2-03 Add the CJS bundle and zip build script
 - [x] P2-04 Add the deploy and teardown scripts
 - [x] P2-05 Push phase 2 and list the manual checks
-- [ ] P3-01 Add the test-user and JWT smoke scripts
+- [x] P3-01 Add the test-user and JWT smoke scripts
 - [ ] P3-02 Add the SigV4 IAM smoke script
 - [ ] P3-03 Write the README
 - [ ] P3-04 Push phase 3 and list the manual checks
@@ -77,3 +77,7 @@ Push: pushed origin build/2026-10-31.
 Manual check: NOT VERIFIED (human)
 - npm run deploy succeeds in us-west-2 (AWS credentials set; cfn-lint >= 1.58 installed).
 - In the Lambda console the function lwf-hello shows one revision and two Active endpoints: iam (IAM auth) and public (application managed).
+
+### P3-01 — 669bed2
+
+Tests: scripts.test.ts +3. Usage check runs before sourcing env.sh. Existing-user case: admin-create-user failure is tolerated with a stderr note. Scripts never run (need AWS).
