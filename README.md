@@ -53,6 +53,8 @@ cfn-lint template.yaml
 
 None of these call AWS. Build and deploy through npm (not bare `sam`) so SAM finds the local esbuild.
 
+`npm test` includes a SAM build in `test/bundle.test.ts`, so it requires the SAM CLI and network access and can take several minutes.
+
 ## Deploy
 
 ```sh
