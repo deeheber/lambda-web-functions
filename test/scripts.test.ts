@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -133,6 +135,46 @@ describe('scripts', () => {
       for (const word of ['infra/', 'artifacts', 'ARTIFACTS_STACK_NAME']) {
         expect(text, `${file}: ${word}`).not.toContain(word);
       }
+    }
+  });
+
+  it('env.sh overrides a caller AWS_REGION with samconfig.toml', () => {
+    const r = spawnSync('bash', ['-c', 'export AWS_REGION=eu-west-1; source scripts/env.sh && printf %s "$AWS_REGION"'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    expect(r.stdout).toBe('us-west-2');
+  });
+
+  it('env.sh exports AWS_REGION', () => {
+    const r = spawnSync('bash', ['-c', 'source scripts/env.sh && printenv AWS_REGION'], { cwd: root, encoding: 'utf8' });
+    expect(r.stdout.trim()).toBe('us-west-2');
+  });
+
+  it('env.sh fails clearly without a readable samconfig.toml', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'envsh-'));
+    try {
+      mkdirSync(join(tmp, 'scripts'));
+      copyFileSync(`${root}scripts/env.sh`, join(tmp, 'scripts', 'env.sh'));
+      const r = spawnSync('bash', ['-c', `source ${join(tmp, 'scripts', 'env.sh')}`], { encoding: 'utf8' });
+      expect(r.status).not.toBe(0);
+      expect(r.stderr).toContain('could not read');
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('env.sh finds samconfig.toml from its own location, not the cwd', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'envsh-cwd-'));
+    try {
+      const r = spawnSync(
+        'bash',
+        ['-c', `source ${root}scripts/env.sh && printf "%s %s" "$STACK_NAME" "$AWS_REGION"`],
+        { cwd: tmp, encoding: 'utf8' },
+      );
+      expect(r.stdout).toBe('lwf us-west-2');
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
     }
   });
 });
