@@ -20,7 +20,7 @@ Started: 2026-10-31T18:07:39.064Z
 - [x] P3-02 Add the SigV4 IAM smoke script
 - [x] P3-03 Write the README
 - [x] P3-04 Push phase 3 and list the manual checks
-- [ ] R1-01 Test the Cognito JWT adapter offline with locally signed tokens
+- [x] R1-01 Test the Cognito JWT adapter offline with locally signed tokens
 
 ## Log
 
@@ -100,3 +100,7 @@ Manual check: NOT VERIFIED (human)
 - Calling /whoami several times on each endpoint shows a shared envId and a rising requestCount (same environments serve both endpoints).
 - Logs appear in /aws/lambda/web/lwf-hello.
 - npm run teardown removes both stacks.
+
+### R1-01 — 6d17f98
+
+Added optional second param createJwtVerifier(settings, jwks?) pre-loading via inner.cacheJwks; Jwks type in src/auth/types.ts (kty optional). Tests: locally RS256-signed tokens; sub, id-token rejection (id token includes aud so tokenUse:null mutant is caught), other client id, lazy load (spy on net.Socket.prototype.connect, since fetch stub/node:https mock don't reach aws-jwt-verify). Verified all 5 mutants fail tests. Codebase note: aws-jwt-verify uses node:https, not fetch.
