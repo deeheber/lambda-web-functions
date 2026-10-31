@@ -1,13 +1,11 @@
 # Lambda Web Functions Hello World
 
-A TypeScript Express 5 app deployed as **two AWS Lambda Web Functions**, defined with AWS SAM. It is a learning reference: a hello world to build more complex things from.
-
-SAM generates one endpoint per Web Function, so the two auth styles live in two functions that run the same code:
+A TypeScript Express 5 hello world deployed with AWS SAM. Two Lambda Web Functions run the same code with different auth modes because SAM generates one endpoint per function:
 
 - `lwf-iam`: endpoint `iam`, `AuthType: IamAuth`. Lambda checks the SigV4 signature. The app receives no caller identity.
 - `lwf-public`: endpoint `public`, `AuthType: ApplicationManaged`. The app verifies a Cognito access token (JWT) itself.
 
-The auth mode comes from the `AUTH_MODE` environment variable (`iam` or `jwt`) that the template sets on each function. It **fails closed**: a missing or unknown `AUTH_MODE` stops the app at startup, and in `jwt` mode a missing or invalid token returns 401.
+The template sets `AUTH_MODE` to `iam` or `jwt`; missing or unknown values stop the app at startup.
 
 ## Routes
 
@@ -20,15 +18,9 @@ The same routes on both functions. In `jwt` mode, every route except `/health` n
 | `GET /stream` | `200 text/event-stream`: `data: {"tick":n}` events, one per interval, then the response ends |
 | anything else | `404 {"error":"not_found"}` |
 
-`envId` and `requestCount` show environment reuse: one environment serves many requests, so calls that return the same `envId` show a rising `requestCount`. Lambda may route a call to another environment or scale one down, so a new `envId` with a lower count is normal. `/stream` shows native HTTP streaming.
-
 ## Prerequisites
 
-- Node 24
-- AWS CLI v2
-- SAM CLI 1.170 or newer
-- cfn-lint
-- AWS credentials (for deploy, test user and smoke tests)
+Node 24, AWS CLI v2, SAM CLI 1.170 or newer, cfn-lint, and AWS credentials.
 
 ## Local development
 
@@ -61,7 +53,7 @@ cfn-lint template.yaml
 
 None of these commands call AWS.
 
-Always build through `npm run build` or `npm run deploy`, never `sam build` directly. esbuild is a devDependency, and only npm puts `node_modules/.bin` on the `PATH`, so a bare `sam build` fails with "Cannot find esbuild".
+Use the npm build/deploy commands so SAM can find the local esbuild dependency.
 
 ## Deploy
 
@@ -69,7 +61,7 @@ Always build through `npm run build` or `npm run deploy`, never `sam build` dire
 npm run deploy
 ```
 
-This runs `sam build && sam deploy`. `samconfig.toml` holds the stack name `lwf` and the Region `us-west-2`. The first deploy also creates a code bucket stack named `lwf-<hash>-WebFunctionCode`, which SAM manages for you.
+`samconfig.toml` sets the stack name (`lwf`) and Region (`us-west-2`). SAM also manages a code bucket stack.
 
 ## Test the deployment
 
@@ -79,9 +71,7 @@ TOKEN=$(npm run --silent create-test-user -- you@example.com)
 npm run smoke:jwt -- "$TOKEN"
 ```
 
-- `npm run smoke:iam` signs requests with SigV4 (service `lambda`, the endpoint's Region) and checks every route. `IamAuth` calls need an `X-Amz-Content-SHA256` header (the payload hash, or `UNSIGNED-PAYLOAD`); without it Lambda returns 403. It also checks that an unsigned request gets 403.
-- `npm run create-test-user -- <email>` creates a Cognito user and prints an access token on stdout.
-- `npm run smoke:jwt -- <token>` checks the `public` endpoint with and without a token.
+The IAM smoke test signs requests and checks that unsigned calls return 403. The JWT smoke test checks access with and without a token. Replace `you@example.com` with your test email. `npm run create-test-user` creates the user or resets the existing user's password and returns a fresh token.
 
 ## Environment reuse
 
@@ -99,32 +89,9 @@ npm run teardown
 
 Deletes the app stack, then empties and deletes the code bucket stack.
 
-## Configuration reference
+## Configuration and cost
 
-App config (`src/config.ts`), the only reader of `process.env`:
-
-| Env var | Key | Default | Notes |
-|---|---|---|---|
-| `AWS_LAMBDA_HTTP_ENDPOINT` | `listen.host`, `listen.port` | `127.0.0.1:3000` | Set by Lambda. The default is for local dev only |
-| `AUTH_MODE` | `auth.mode` | required | `iam` or `jwt`; anything else fails at startup |
-| `COGNITO_USER_POOL_ID` | `auth.cognito.userPoolId` | required when `jwt` | Ignored when `iam` |
-| `COGNITO_CLIENT_ID` | `auth.cognito.clientId` | required when `jwt` | Ignored when `iam` |
-| `STREAM_TICKS` | `stream.ticks` | `5` | Starting guess |
-| `STREAM_INTERVAL_MS` | `stream.intervalMs` | `500` | Starting guess |
-
-Template parameters (`template.yaml`):
-
-| Parameter | Default | Notes |
-|---|---|---|
-| `TimeoutSeconds` | `30` | 3 to 900 |
-| `MaxConcurrencyPerEnvironment` | `64` | 1 to 128 |
-| `MaxEnvironments` | `2` | Starting guess. Cost cap per function. Minimum 2 |
-| `RateLimit` | `100` | Starting guess. Requests per second per endpoint, 100 to 1000 in steps of 100 |
-| `ApplicationLogLevel` | `INFO` | `TRACE` to `FATAL` |
-
-## Cost notes
-
-`MaxEnvironments` and `RateLimit` are cost caps for experimenting. They apply to each function, so there are two sets of environments. Tear the stacks down when you are done.
+See [src/config.ts](src/config.ts) for app configuration and [template.yaml](template.yaml) for deployment parameters. `MaxEnvironments` and `RateLimit` limit each function separately. Tear down when done experimenting.
 
 ## Future experiments
 
