@@ -101,7 +101,7 @@ A single npm package at the repo root. Source is ESM TypeScript with `strict` an
 | `src/auth/jwt-verifier.ts` | Unchanged adapter: `createJwtVerifier(settings, jwks?)` builds a `CognitoJwtVerifier` (`tokenUse: "access"`, `clientId`) behind a `JwtVerifier` interface | `aws-jwt-verify`, `src/auth/types` |
 | `src/routes/{health,whoami,stream}.ts` | One route each | `src/env-info`, `src/config` (types) |
 | `template.yaml` | SAM template at the repo root: Cognito user pool + app client, `IamFunction` and `PublicFunction` (`AWS::Serverless::WebFunction`), parameters, outputs | — |
-| `samconfig.toml` | `stack_name = "lwf"`, `region = "us-west-2"`, `resolve_s3 = true`, `capabilities = "CAPABILITY_IAM"`, `confirm_changeset = false` | — |
+| `samconfig.toml` | `version = 0.1`. `[default.global.parameters]`: `stack_name = "lwf"`, `region = "us-west-2"`, so `sam deploy` and `sam delete` both pick them up. `[default.deploy.parameters]`: `resolve_s3 = true`, `capabilities = "CAPABILITY_IAM"`, `confirm_changeset = false` | — |
 | `scripts/create-test-user.sh` | `admin-create-user` + `admin-set-user-password --permanent`, then `initiate-auth USER_PASSWORD_AUTH`. Prints an access token. Reads stack outputs from the `lwf` stack | — |
 | `scripts/smoke-iam.ts` | Run with `node`. Signs GET `/health`, `/whoami` and `/stream` against `IamEndpointUrl` with `@smithy/signature-v4` + `@aws-crypto/sha256-js` + the default credential chain, **including `X-Amz-Content-SHA256`**. Also checks that an unsigned GET returns 403. Exits non-zero on any mismatch | — |
 | `scripts/smoke-jwt.sh` | Against `PublicEndpointUrl`: `/health` → 200, `/whoami` without a token → 401, with a token → 200 and `subject` set, `/stream` with a token → at least one event, numbered from 1 | — |
@@ -136,7 +136,7 @@ Boundaries: `src/` never imports from `scripts/` or `test/`. `scripts/` never im
   - `IamEndpointUrl` and `PublicEndpointUrl` (`!Sub "https://${IamFunctionEndpoint.DomainName}"` and the `PublicFunctionEndpoint` equivalent)
   - `IamFunctionName` and `PublicFunctionName` (the `!Sub` names, not `Ref`, which returns an ARN)
   - `UserPoolId`, `UserPoolClientId`
-- `.gitignore` adds `.aws-sam/`. `samconfig.toml` is committed.
+- `.gitignore` adds `.aws-sam/`, **and `eslint.config.js` adds `.aws-sam/` to its `ignores`**. Verified: after one `npm run build`, `npm run lint` reports 1,280 errors from the minified bundle in `.aws-sam/build/` unless it's ignored. `samconfig.toml` is committed.
 
 Shared wiring, which the plan should keep in serial tasks: `src/app.ts`, `src/config.ts`, `package.json`, `template.yaml`.
 
@@ -203,7 +203,7 @@ The repo already has `package.json`, so verify commands that exist today apply f
 - template lint: `cfn-lint template.yaml`
 - targeted test (`mutation.targeted`): `npx vitest run {filter}`
 
-`test/bundle.test.ts` must prove the artifact that will actually be deployed works. Run `npm run build` (or reuse a fresh `.aws-sam/build`), then start `.aws-sam/build/IamFunction/server.js` with Node, `AUTH_MODE=iam` and `AWS_LAMBDA_HTTP_ENDPOINT` set to a free port. Assert:
+`test/bundle.test.ts` must prove the artifact that will actually be deployed works. Run `npm run build` (or reuse a fresh `.aws-sam/build`), then **copy `.aws-sam/build/IamFunction/server.js` into a fresh temp directory** and start it there with Node, `AUTH_MODE=iam` and `AWS_LAMBDA_HTTP_ENDPOINT` set to a free port. The copy is required. Run in place, Node finds the repo's root `package.json` (`"type": "module"`) and loads the CJS bundle as ESM, which crashes with `require is not defined` (verified). A temp directory with no `package.json` mirrors the Lambda zip root, where the same file starts fine (verified: `/health` 200, `SIGTERM` exit 0). Assert:
 - `/health` returns 200
 - `SIGTERM` exits 0 within 1 s
 - the build directory holds the single bundled `server.js` and no `package.json`
