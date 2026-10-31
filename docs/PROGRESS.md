@@ -13,7 +13,7 @@ Started: 2026-10-31T19:05:25.860Z
 - [x] P2-03 Phase 2 end: push and list manual checks
 - [x] P3-01 Update the smoke and test-user scripts for the SAM stack
 - [x] P3-02 Rewrite the README and confirm the CLAUDE.md module map
-- [ ] P3-03 Phase 3 end: push and list manual checks
+- [x] P3-03 Phase 3 end: push and list manual checks
 
 ## Log
 
@@ -59,3 +59,12 @@ env.sh reads stack_name/region from samconfig.toml (overrides caller AWS_REGION)
 ### P3-02 — 4c41cca
 
 README rewritten for SAM two-function version; CLAUDE.md module map: only the env.sh row's "after P3-01" wording changed. 3 new readme tests.
+
+### P3-03 — 469d76c
+
+Push: done.
+Manual check: NOT VERIFIED (human)
+- `npm run smoke:iam` exits 0; `TOKEN=$(npm run --silent create-test-user -- <email>)` prints a token; `npm run smoke:jwt -- "$TOKEN"` exits 0.
+- Calling /whoami several times on each function shows a stable envId and a rising requestCount within that function, and the two functions have different envIds.
+- Logs appear in /aws/lambda/web/lwf-iam and /aws/lambda/web/lwf-public.
+- `npm run teardown` removes the app stack and its code bucket stack.
