@@ -9,7 +9,7 @@ Started: 2026-10-31T18:07:39.064Z
 - [x] P1-02 Add env-info and the Cognito JWT verifier adapter
 - [x] P1-03 Add the fail-closed auth middleware
 - [x] P1-04 Add createApp with the health, whoami and stream routes
-- [ ] P1-05 Add the server entry point with SIGTERM handling and npm run dev
+- [x] P1-05 Add the server entry point with SIGTERM handling and npm run dev
 - [ ] P1-06 Push phase 1 and list the manual checks
 - [ ] P2-01 Add the artifacts bucket template
 - [ ] P2-02 Add the app template and the pairing invariant test
@@ -40,3 +40,7 @@ Tests: test/auth.test.ts (11). Interpretation: 'iam ' (trailing space) cannot be
 ### P1-04 — 5a2c8a3
 
 Tests: app.test.ts (11), stream.test.ts (4, real loopback server). notFoundHandler/errorHandler exported from src/app.ts. whoami uses res.locals.requestCount. Stream timing test allows 5ms slack (>=35 vs 40ms).
+
+### P1-05 — 231d195
+
+Tests: test/server.test.ts (5, spawns src/server.ts via native type stripping with literal env). Added dev script. Ran npm run dev and curled /whoami: 200. Test file uses import.meta (allowed in test/).
