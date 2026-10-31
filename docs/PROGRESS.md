@@ -7,7 +7,7 @@ Started: 2026-10-31T18:07:39.064Z
 
 - [x] P1-01 Scaffold the package and typed config loader
 - [x] P1-02 Add env-info and the Cognito JWT verifier adapter
-- [ ] P1-03 Add the fail-closed auth middleware
+- [x] P1-03 Add the fail-closed auth middleware
 - [ ] P1-04 Add createApp with the health, whoami and stream routes
 - [ ] P1-05 Add the server entry point with SIGTERM handling and npm run dev
 - [ ] P1-06 Push phase 1 and list the manual checks
@@ -32,3 +32,7 @@ Tests: test/config.test.ts (13 incl. it.each). Interpretation: STREAM_INTERVAL_M
 ### P1-02 — 89620db
 
 Tests: env-info (3), jwt-verifier (3, fetch stubbed). No interpretation. Types in src/auth/types.ts as specified.
+
+### P1-03 — 9e363c9
+
+Tests: test/auth.test.ts (11). Interpretation: 'iam ' (trailing space) cannot be sent over HTTP (parser trims), so exact-match test uses 'IAM','iam2','Public'. Empty header treated as missing.
