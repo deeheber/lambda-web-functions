@@ -18,9 +18,11 @@ The same routes on both functions. In `jwt` mode, every route except `/health` n
 | `GET /stream` | `200 text/event-stream`: `data: {"tick":n}` events, one per interval, then the response ends |
 | anything else | `404 {"error":"not_found"}` |
 
+In `jwt` mode, missing or invalid tokens return `401 {"error":"unauthorized"}` before routing, including for unknown paths. `/health` is exempt from the app's JWT check; the deployed IAM endpoint still requires signed requests for every path.
+
 ## Prerequisites
 
-Node 24, AWS CLI v2, SAM CLI 1.170 or newer, and cfn-lint. AWS credentials are required only for deployment, test-user creation, smoke tests, and teardown.
+Node 24, AWS CLI v2, SAM CLI 1.170 or newer, and cfn-lint. AWS credentials are required only for deployment, test-user creation, deployment smoke tests, and teardown.
 
 ## Local development
 
@@ -39,7 +41,7 @@ curl -i localhost:3001/whoami      # 401, WWW-Authenticate: Bearer
 curl -i localhost:3001/health      # 200
 ```
 
-The local `public` server rejects every token, which is expected.
+`dev:public` uses placeholder Cognito pool and client IDs, so protected routes reject tokens from your deployed pool. `/health` remains accessible without a token.
 
 ## Checks
 
@@ -53,6 +55,8 @@ cfn-lint template.yaml
 
 None of these call AWS. Build and deploy through npm (not bare `sam`) so SAM finds the local esbuild.
 
+`npm test` runs the regular tests without building. Run `npm run test:bundle` separately to build and check that the packaged app serves `/health`. This requires the SAM CLI, may need network access to install uncached dependencies, and can take several minutes.
+
 ## Deploy
 
 ```sh
@@ -60,6 +64,8 @@ npm run deploy
 ```
 
 `samconfig.toml` sets the stack name (`lwf`) and Region (`us-west-2`).
+
+The test-user and deployment smoke scripts read these same settings, overriding any inherited `AWS_REGION`.
 
 ## Test the deployment
 
@@ -73,11 +79,13 @@ npm run smoke:jwt -- "$TOKEN"
 
 ## Environment reuse
 
-Call `/whoami` repeatedly: `requestCount` rises while `envId` stays the same, and a new `envId` means a different environment answered. Each function has its own environments.
+Call `/whoami` repeatedly to see which environment handles each request. `envId` and `startedAt` stay fixed within an environment, while `requestCount` counts all requests handled there, including health checks and requests rejected by app authentication. Requests can reach different environments, so counts across responses need not increase. Each function has its own environments.
 
 ## Logs
 
 Logs go to `/aws/lambda/web/lwf-iam` and `/aws/lambda/web/lwf-public`.
+
+The template defaults to application log level `INFO` and system log level `WARN`, controlled by the `ApplicationLogLevel` and `SystemLogLevel` parameters. The app logs startup and unhandled errors; it does not log each request.
 
 ## Teardown
 
@@ -85,11 +93,13 @@ Logs go to `/aws/lambda/web/lwf-iam` and `/aws/lambda/web/lwf-public`.
 npm run teardown
 ```
 
-Deletes the app stack, then empties and deletes the code bucket stack SAM created on the first deploy.
+Runs `sam delete --no-prompts` for the configured stack.
 
 ## Configuration and cost
 
 App settings live in [src/config.ts](src/config.ts) and deployment parameters in [template.yaml](template.yaml); `MaxEnvironments` and `RateLimit` apply to each function separately.
+
+`STREAM_TICKS` and `STREAM_INTERVAL_MS` control the number and spacing of stream events. JWT mode also requires `COGNITO_USER_POOL_ID` and `COGNITO_CLIENT_ID`; the template supplies both from the Cognito resources it creates.
 
 ## Future experiments
 
