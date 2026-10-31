@@ -14,14 +14,18 @@
     "deploy": "bash scripts/deploy.sh",
     "teardown": "bash scripts/teardown.sh",
     "create-test-user": "bash scripts/create-test-user.sh",
-    "smoke:jwt": "bash scripts/smoke-jwt.sh"
+    "smoke:jwt": "bash scripts/smoke-jwt.sh",
+    "smoke:iam": "bash -c 'source scripts/env.sh && node scripts/smoke-iam.ts \"$(stack_output \"$STACK_NAME\" IamEndpointUrl)\" \"$AWS_REGION\"'"
   },
   "dependencies": {
     "aws-jwt-verify": "^5.2.1",
     "express": "^5.3.0"
   },
   "devDependencies": {
+    "@aws-crypto/sha256-js": "^5.2.0",
+    "@aws-sdk/credential-provider-node": "^3.972.92",
     "@eslint/js": "^9.39.5",
+    "@smithy/signature-v4": "^5.7.5",
     "@types/express": "^5.0.6",
     "@types/node": "^24.19.2",
     "@types/supertest": "^7.2.1",

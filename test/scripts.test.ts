@@ -46,4 +46,22 @@ describe('scripts', () => {
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('usage');
   });
+
+  it('smoke-iam.ts prints usage and exits 2 without arguments', () => {
+    const r = spawnSync(process.execPath, [`${root}scripts/smoke-iam.ts`], { env: {}, encoding: 'utf8' });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('usage');
+  });
+
+  it('smoke-iam.ts signs for service lambda and sets x-amz-content-sha256', () => {
+    const text = readFileSync(`${root}scripts/smoke-iam.ts`, 'utf8');
+    expect(text).toContain("service: 'lambda'");
+    expect(text).toContain('x-amz-content-sha256');
+  });
+
+  it('package.json wires smoke:iam through env.sh', () => {
+    const pkg = JSON.parse(readFileSync(`${root}package.json`, 'utf8')) as { scripts: Record<string, string> };
+    expect(pkg.scripts['smoke:iam']).toContain('source scripts/env.sh');
+    expect(pkg.scripts['smoke:iam']).toContain('node scripts/smoke-iam.ts');
+  });
 });
