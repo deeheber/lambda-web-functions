@@ -15,7 +15,7 @@ Started: 2026-10-31T18:07:39.064Z
 - [x] P2-02 Add the app template and the pairing invariant test
 - [x] P2-03 Add the CJS bundle and zip build script
 - [x] P2-04 Add the deploy and teardown scripts
-- [ ] P2-05 Push phase 2 and list the manual checks
+- [x] P2-05 Push phase 2 and list the manual checks
 - [ ] P3-01 Add the test-user and JWT smoke scripts
 - [ ] P3-02 Add the SigV4 IAM smoke script
 - [ ] P3-03 Write the README
@@ -70,3 +70,10 @@ Tests: bundle.test.ts (4) builds into a temp dir, unzips, runs the bundle. npm r
 ### P2-04 — 6f2d508
 
 Tests: scripts.test.ts (3; bash -n only). Note: constraint infra-tunables-are-parameters scans scripts too, so comments in deploy.sh must not write "MaxEnvironments=4" style text. Later scripts/test (P3) must also avoid tunable=value text.
+
+### P2-05 — 4421a03
+
+Push: pushed origin build/2026-10-31.
+Manual check: NOT VERIFIED (human)
+- npm run deploy succeeds in us-west-2 (AWS credentials set; cfn-lint >= 1.58 installed).
+- In the Lambda console the function lwf-hello shows one revision and two Active endpoints: iam (IAM auth) and public (application managed).
