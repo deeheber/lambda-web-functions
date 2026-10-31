@@ -27,4 +27,23 @@ describe('scripts', () => {
     expect(pkg.scripts.deploy).toBe('bash scripts/deploy.sh');
     expect(pkg.scripts.teardown).toBe('bash scripts/teardown.sh');
   });
+
+  it('package.json wires create-test-user and smoke:jwt to the scripts', () => {
+    const pkg = JSON.parse(readFileSync(`${root}package.json`, 'utf8')) as { scripts: Record<string, string> };
+    expect(pkg.scripts['create-test-user']).toBe('bash scripts/create-test-user.sh');
+    expect(pkg.scripts['smoke:jwt']).toBe('bash scripts/smoke-jwt.sh');
+  });
+
+  it('create-test-user.sh prints usage and exits 2 without an email', () => {
+    const r = spawnSync('bash', [`${root}scripts/create-test-user.sh`], { encoding: 'utf8' });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('usage');
+    expect(r.stdout).toBe('');
+  });
+
+  it('smoke-jwt.sh prints usage and exits 2 without a token', () => {
+    const r = spawnSync('bash', [`${root}scripts/smoke-jwt.sh`], { encoding: 'utf8' });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('usage');
+  });
 });
