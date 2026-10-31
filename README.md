@@ -20,7 +20,7 @@ The same routes on both functions. In `jwt` mode, every route except `/health` n
 
 ## Prerequisites
 
-Node 24, AWS CLI v2, SAM CLI 1.170 or newer, cfn-lint, and AWS credentials.
+Node 24, AWS CLI v2, SAM CLI 1.170 or newer, and cfn-lint. AWS credentials are required only for deployment, test-user creation, smoke tests, and teardown.
 
 ## Local development
 
