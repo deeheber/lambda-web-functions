@@ -13,9 +13,13 @@ const fakeVerifier: JwtVerifier = {
   },
 };
 
-function buildApp() {
+function buildApp(mode: 'iam' | 'jwt', withVerifier = true) {
+  const auth =
+    mode === 'iam'
+      ? ({ mode: 'iam' } as const)
+      : ({ mode: 'jwt', cognito: { userPoolId: 'pool', clientId: 'client' } } as const);
   const app = express();
-  app.use(authMiddleware({ iamEndpointName: 'iam', jwtEndpointName: 'public' }, fakeVerifier));
+  app.use(authMiddleware(auth, withVerifier ? fakeVerifier : undefined));
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
@@ -28,89 +32,69 @@ function buildApp() {
   return app;
 }
 
-const ENDPOINT = 'lambda-web-endpoint-name';
-
 describe('authMiddleware', () => {
   beforeEach(() => {
     calls = 0;
   });
 
-  it('returns 401 when the endpoint header is missing', async () => {
-    const res = await request(buildApp()).get('/probe');
-    expect(res.status).toBe(401);
-    expect(res.body).toEqual({ error: 'unauthorized' });
-  });
-
-  it('returns 401 for an unknown endpoint name', async () => {
-    const res = await request(buildApp()).get('/probe').set(ENDPOINT, 'other');
-    expect(res.status).toBe(401);
-    expect(res.body).toEqual({ error: 'unauthorized' });
-  });
-
-  it('matches endpoint names exactly', async () => {
-    // Trailing whitespace ('iam ') is stripped by the HTTP parser, so it cannot be sent; use case and suffix variants.
-    for (const name of ['IAM', 'iam2', 'Public']) {
-      const res = await request(buildApp()).get('/probe').set(ENDPOINT, name);
-      expect(res.status).toBe(401);
-    }
-  });
-
-  it('allows the iam endpoint without a token and sets subject null', async () => {
-    const res = await request(buildApp()).get('/probe').set(ENDPOINT, 'iam');
+  it('iam mode allows a request without a token and sets subject null', async () => {
+    const res = await request(buildApp('iam')).get('/probe');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ endpoint: 'iam', authMode: 'iam', subject: null });
+    expect(res.body).toEqual({ authMode: 'iam', subject: null });
   });
 
-  it('does not call the verifier on the iam endpoint', async () => {
-    await request(buildApp()).get('/probe').set(ENDPOINT, 'iam').set('Authorization', 'Bearer good-token');
+  it('iam mode does not call the verifier', async () => {
+    await request(buildApp('iam')).get('/probe').set('Authorization', 'Bearer good-token');
     expect(calls).toBe(0);
   });
 
-  it('returns 401 with WWW-Authenticate on public without a token', async () => {
-    const res = await request(buildApp()).get('/probe').set(ENDPOINT, 'public');
+  it('iam mode works without a verifier', async () => {
+    const res = await request(buildApp('iam', false)).get('/probe');
+    expect(res.status).toBe(200);
+  });
+
+  it('jwt mode returns 401 with WWW-Authenticate when the token is missing', async () => {
+    const res = await request(buildApp('jwt')).get('/probe');
     expect(res.status).toBe(401);
     expect(res.headers['www-authenticate']).toBe('Bearer');
     expect(res.body).toEqual({ error: 'unauthorized' });
   });
 
-  it('returns 401 on public with an invalid token', async () => {
-    const res = await request(buildApp())
-      .get('/probe')
-      .set(ENDPOINT, 'public')
-      .set('Authorization', 'Bearer bad-token');
+  it('jwt mode returns 401 on an invalid token', async () => {
+    const res = await request(buildApp('jwt')).get('/probe').set('Authorization', 'Bearer bad-token');
     expect(res.status).toBe(401);
     expect(res.headers['www-authenticate']).toBe('Bearer');
   });
 
-  it('returns 401 on public with a non-Bearer Authorization header', async () => {
-    const res = await request(buildApp())
-      .get('/probe')
-      .set(ENDPOINT, 'public')
-      .set('Authorization', 'Basic abc');
+  it('jwt mode returns 401 on a non-Bearer Authorization header', async () => {
+    const res = await request(buildApp('jwt')).get('/probe').set('Authorization', 'Basic abc');
     expect(res.status).toBe(401);
     expect(calls).toBe(0);
   });
 
-  it('returns 200 on public with a valid token and sets subject to sub', async () => {
-    const res = await request(buildApp())
-      .get('/probe')
-      .set(ENDPOINT, 'public')
-      .set('Authorization', 'Bearer good-token');
+  it('jwt mode returns 200 with a valid token and sets subject to sub', async () => {
+    const res = await request(buildApp('jwt')).get('/probe').set('Authorization', 'Bearer good-token');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ endpoint: 'public', authMode: 'jwt', subject: 'user-123' });
+    expect(res.body).toEqual({ authMode: 'jwt', subject: 'user-123' });
   });
 
-  it('allows /health on public without a token', async () => {
-    const res = await request(buildApp()).get('/health').set(ENDPOINT, 'public');
+  it('jwt mode allows /health without a token', async () => {
+    const res = await request(buildApp('jwt')).get('/health');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: 'ok' });
   });
 
+  it('jwt mode ignores a lambda-web-endpoint-name header', async () => {
+    const res = await request(buildApp('jwt')).get('/probe').set('lambda-web-endpoint-name', 'iam');
+    expect(res.status).toBe(401);
+  });
+
+  it('throws at construction in jwt mode without a verifier', () => {
+    expect(() => buildApp('jwt', false)).toThrow();
+  });
+
   it('does not turn downstream errors into 401', async () => {
-    const res = await request(buildApp())
-      .get('/boom')
-      .set(ENDPOINT, 'public')
-      .set('Authorization', 'Bearer good-token');
+    const res = await request(buildApp('jwt')).get('/boom').set('Authorization', 'Bearer good-token');
     expect(res.status).toBe(500);
   });
 });

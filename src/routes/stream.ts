@@ -1,10 +1,15 @@
-import type { RequestHandler } from 'express';
-import type { Config } from '../config.ts';
+import type { RequestHandler } from "express";
+import type { Config } from "../config.ts";
 
-export function createStreamHandler(settings: Config['stream']): RequestHandler {
+export function createStreamHandler(
+  settings: Config["stream"],
+): RequestHandler {
   return (_req, res) => {
     res.status(200);
-    res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
+    res.set({
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+    });
     res.flushHeaders();
 
     let tick = 0;
@@ -17,7 +22,7 @@ export function createStreamHandler(settings: Config['stream']): RequestHandler 
       }
     }, settings.intervalMs);
 
-    res.on('close', () => {
+    res.on("close", () => {
       clearInterval(timer);
     });
   };

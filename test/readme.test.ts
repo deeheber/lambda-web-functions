@@ -24,5 +24,23 @@ describe('README.md', () => {
     expect(readme).toContain('Node 24');
     expect(readme).toContain('AWS CLI v2');
     expect(readme).toContain('cfn-lint');
+    expect(readme).toContain('SAM CLI');
+    expect(readme).toContain('1.170');
+  });
+
+  it('explains the two functions and AUTH_MODE', () => {
+    for (const word of ['IamAuth', 'ApplicationManaged', 'AUTH_MODE']) expect(readme).toContain(word);
+  });
+
+  it('names the template lint command and the log groups', () => {
+    expect(readme).toContain('cfn-lint template.yaml');
+    expect(readme).toContain('/aws/lambda/web/lwf-iam');
+    expect(readme).toContain('/aws/lambda/web/lwf-public');
+  });
+
+  it('has no 0.1 leftovers', () => {
+    for (const word of ['lambda-web-endpoint-name', 'infra/', 'AUTH_ENDPOINT', 'artifacts', 'app.zip', "Don't deploy this version"]) {
+      expect(readme, word).not.toContain(word);
+    }
   });
 });

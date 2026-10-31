@@ -8,8 +8,11 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 const baseEnv = {
   AWS_LAMBDA_HTTP_ENDPOINT: '127.0.0.1:0',
-  AUTH_ENDPOINT_IAM: 'iam',
-  AUTH_ENDPOINT_JWT: 'public',
+  AUTH_MODE: 'iam',
+};
+const jwtEnv = {
+  AWS_LAMBDA_HTTP_ENDPOINT: '127.0.0.1:0',
+  AUTH_MODE: 'jwt',
   COGNITO_USER_POOL_ID: 'us-west-2_000000000',
   COGNITO_CLIENT_ID: 'local',
 };
@@ -18,7 +21,7 @@ const children: ChildProcess[] = [];
 
 interface Started {
   child: ChildProcess;
-  listening: { msg: string; host: string; port: number; envId: string };
+  listening: { msg: string; host: string; port: number; envId: string; authMode: string };
   exited: Promise<{ code: number | null; at: number }>;
 }
 
@@ -48,16 +51,38 @@ async function start(env: Record<string, string>): Promise<Started> {
   return { child, listening, exited };
 }
 
+async function exitCode(env: Record<string, string>): Promise<number | null> {
+  const child = spawn(process.execPath, ['src/server.ts'], { cwd: root, env });
+  children.push(child);
+  child.stderr?.resume();
+  return new Promise<number | null>((resolve) => child.on('exit', resolve));
+}
+
 afterEach(() => {
   for (const c of children.splice(0)) c.kill('SIGKILL');
 });
 
 describe('server entry point', { timeout: 15000 }, () => {
-  it('logs one JSON listening line with host, port and envId', async () => {
+  it('logs one JSON listening line with host, port, envId and authMode', async () => {
     const { listening } = await start(baseEnv);
+    expect(listening.authMode).toBe('iam');
     expect(listening.host).toBe('127.0.0.1');
     expect(listening.port).toBeGreaterThan(0);
     expect(listening.envId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('logs authMode jwt when started in jwt mode', async () => {
+    const { listening } = await start(jwtEnv);
+    expect(listening.authMode).toBe('jwt');
+  });
+
+  it('starts in iam mode even with a malformed COGNITO_USER_POOL_ID', async () => {
+    const { listening } = await start({ ...baseEnv, COGNITO_USER_POOL_ID: 'bad', COGNITO_CLIENT_ID: 'x' });
+    expect(listening.authMode).toBe('iam');
+  });
+
+  it('exits non-zero in jwt mode with a malformed COGNITO_USER_POOL_ID', async () => {
+    expect(await exitCode({ ...jwtEnv, COGNITO_USER_POOL_ID: 'bad' })).not.toBe(0);
   });
 
   it('serves /health on the logged port', async () => {
@@ -65,7 +90,7 @@ describe('server entry point', { timeout: 15000 }, () => {
     const res = await new Promise<{ status: number | undefined; body: string }>((resolve, reject) => {
       http
         .get(
-          { host: '127.0.0.1', port: listening.port, path: '/health', headers: { 'lambda-web-endpoint-name': 'iam' } },
+          { host: '127.0.0.1', port: listening.port, path: '/health' },
           (r) => {
             let body = '';
             r.on('data', (d) => (body += d));
@@ -93,7 +118,6 @@ describe('server entry point', { timeout: 15000 }, () => {
       host: '127.0.0.1',
       port: listening.port,
       path: '/stream',
-      headers: { 'lambda-web-endpoint-name': 'iam' },
     });
     req.on('error', () => {});
     await new Promise<void>((resolve) => {
@@ -109,13 +133,17 @@ describe('server entry point', { timeout: 15000 }, () => {
     expect(at - sent).toBeLessThan(1000);
   });
 
-  it('exits non-zero when a required env var is missing', async () => {
+  it('exits non-zero when AUTH_MODE is missing', async () => {
     const env: Record<string, string> = { ...baseEnv };
-    delete env.AUTH_ENDPOINT_JWT;
-    const child = spawn(process.execPath, ['src/server.ts'], { cwd: root, env });
-    children.push(child);
-    child.stderr?.resume();
-    const code = await new Promise<number | null>((resolve) => child.on('exit', resolve));
-    expect(code).not.toBe(0);
+    delete env.AUTH_MODE;
+    expect(await exitCode(env)).not.toBe(0);
+  });
+
+  it('exits non-zero when AUTH_MODE is none', async () => {
+    expect(await exitCode({ ...baseEnv, AUTH_MODE: 'none' })).not.toBe(0);
+  });
+
+  it('exits non-zero in jwt mode without Cognito values', async () => {
+    expect(await exitCode({ AWS_LAMBDA_HTTP_ENDPOINT: '127.0.0.1:0', AUTH_MODE: 'jwt' })).not.toBe(0);
   });
 });

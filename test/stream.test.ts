@@ -12,10 +12,9 @@ const verifier: JwtVerifier = {
   },
 };
 
-function makeConfig(ticks: string, interval: string) {
+function makeConfig(ticks: string, interval: string, mode: 'iam' | 'jwt') {
   return loadConfig({
-    AUTH_ENDPOINT_IAM: 'iam',
-    AUTH_ENDPOINT_JWT: 'public',
+    AUTH_MODE: mode,
     COGNITO_USER_POOL_ID: 'us-west-2_000000000',
     COGNITO_CLIENT_ID: 'local',
     STREAM_TICKS: ticks,
@@ -25,8 +24,12 @@ function makeConfig(ticks: string, interval: string) {
 
 const servers: http.Server[] = [];
 
-async function start(ticks: string, interval: string): Promise<{ server: http.Server; port: number }> {
-  const server = createApp(makeConfig(ticks, interval), { verifier }).listen(0, '127.0.0.1');
+async function start(
+  ticks: string,
+  interval: string,
+  mode: 'iam' | 'jwt' = 'iam',
+): Promise<{ server: http.Server; port: number }> {
+  const server = createApp(makeConfig(ticks, interval, mode), { verifier }).listen(0, '127.0.0.1');
   servers.push(server);
   await new Promise<void>((resolve) => server.once('listening', resolve));
   return { server, port: (server.address() as AddressInfo).port };
@@ -75,7 +78,7 @@ afterEach(async () => {
 describe('GET /stream', () => {
   it('streams stream.ticks events then ends', async () => {
     const { port } = await start('3', '5');
-    const res = await get(port, { 'lambda-web-endpoint-name': 'iam' });
+    const res = await get(port, {});
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/^text\/event-stream/);
     expect(res.headers['cache-control']).toBe('no-cache');
@@ -84,7 +87,7 @@ describe('GET /stream', () => {
 
   it('delivers ticks as separate chunks over time', async () => {
     const { port } = await start('3', '40');
-    const res = await get(port, { 'lambda-web-endpoint-name': 'iam' });
+    const res = await get(port, {});
     expect(res.chunks.length).toBeGreaterThanOrEqual(2);
     // Timer granularity can fire a few ms early; allow 5 ms slack on the 40 ms floor.
     expect(res.chunks[res.chunks.length - 1]!.at - res.chunks[0]!.at).toBeGreaterThanOrEqual(35);
@@ -95,7 +98,7 @@ describe('GET /stream', () => {
     const spy = vi.spyOn(globalThis, 'clearInterval');
     await new Promise<void>((resolve, reject) => {
       const req = http.request(
-        { host: '127.0.0.1', port, path: '/stream', headers: { 'lambda-web-endpoint-name': 'iam' } },
+        { host: '127.0.0.1', port, path: '/stream' },
         (res) => {
           res.once('data', () => {
             req.destroy();
@@ -119,9 +122,9 @@ describe('GET /stream', () => {
     );
   });
 
-  it('requires a token on the public endpoint', async () => {
-    const { port } = await start('3', '5');
-    const res = await get(port, { 'lambda-web-endpoint-name': 'public' });
+  it('requires a token in jwt mode', async () => {
+    const { port } = await start('3', '5', 'jwt');
+    const res = await get(port, {});
     expect(res.status).toBe(401);
   });
 });

@@ -1,0 +1,119 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Lambda Web Functions hello world, one IamAuth and one ApplicationManaged function.
+
+Parameters:
+  TimeoutSeconds:
+    Type: Number
+    Default: 30
+    MinValue: 3
+    MaxValue: 900
+  MaxConcurrencyPerEnvironment:
+    Type: Number
+    Default: 64
+    MinValue: 1
+    MaxValue: 128
+  MaxEnvironments:
+    Type: Number
+    Default: 2
+    MinValue: 2
+    Description: ASSUMPTION - cost cap, maximum execution environments per function.
+  RateLimit:
+    Type: Number
+    Default: 100
+    AllowedValues: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+    Description: ASSUMPTION - requests per second per endpoint.
+  ApplicationLogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [TRACE, DEBUG, INFO, WARN, ERROR, FATAL]
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  IamFunction:
+    Type: AWS::Serverless::WebFunction
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: cjs
+        Target: node24
+        EntryPoints:
+          - src/server.ts
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-iam
+      Runtime: nodejs24.x
+      CodeUri: ./
+      EntryPoint: src/server.ts
+      EndpointName: iam
+      EndpointType: HomeRegion
+      AuthType: IamAuth
+      Timeout: !Ref TimeoutSeconds
+      MaxConcurrencyPerEnvironment: !Ref MaxConcurrencyPerEnvironment
+      LoggingConfig:
+        ApplicationLogLevel: !Ref ApplicationLogLevel
+      ScalingConfig:
+        MaxEnvironments: !Ref MaxEnvironments
+      ThrottleConfig:
+        RateLimit: !Ref RateLimit
+      EnvironmentVariables:
+        AUTH_MODE: iam
+
+  PublicFunction:
+    Type: AWS::Serverless::WebFunction
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: cjs
+        Target: node24
+        EntryPoints:
+          - src/server.ts
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-public
+      Runtime: nodejs24.x
+      CodeUri: ./
+      EntryPoint: src/server.ts
+      EndpointName: public
+      EndpointType: HomeRegion
+      AuthType: ApplicationManaged
+      Timeout: !Ref TimeoutSeconds
+      MaxConcurrencyPerEnvironment: !Ref MaxConcurrencyPerEnvironment
+      LoggingConfig:
+        ApplicationLogLevel: !Ref ApplicationLogLevel
+      ScalingConfig:
+        MaxEnvironments: !Ref MaxEnvironments
+      ThrottleConfig:
+        RateLimit: !Ref RateLimit
+      EnvironmentVariables:
+        AUTH_MODE: jwt
+        COGNITO_USER_POOL_ID: !Ref UserPool
+        COGNITO_CLIENT_ID: !Ref UserPoolClient
+
+Outputs:
+  IamEndpointUrl:
+    Value: !Sub "https://${IamFunctionEndpoint.DomainName}"
+  PublicEndpointUrl:
+    Value: !Sub "https://${PublicFunctionEndpoint.DomainName}"
+  IamFunctionName:
+    Value: !Sub ${AWS::StackName}-iam
+  PublicFunctionName:
+    Value: !Sub ${AWS::StackName}-public
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Value: !Ref UserPoolClient
