@@ -27,6 +27,10 @@ Parameters:
     Type: String
     Default: INFO
     AllowedValues: [TRACE, DEBUG, INFO, WARN, ERROR, FATAL]
+  SystemLogLevel:
+    Type: String
+    Default: WARN
+    AllowedValues: [DEBUG, INFO, WARN]
 
 Resources:
   UserPool:
@@ -67,6 +71,7 @@ Resources:
       MaxConcurrencyPerEnvironment: !Ref MaxConcurrencyPerEnvironment
       LoggingConfig:
         ApplicationLogLevel: !Ref ApplicationLogLevel
+        SystemLogLevel: !Ref SystemLogLevel
       ScalingConfig:
         MaxEnvironments: !Ref MaxEnvironments
       ThrottleConfig:
@@ -95,6 +100,7 @@ Resources:
       MaxConcurrencyPerEnvironment: !Ref MaxConcurrencyPerEnvironment
       LoggingConfig:
         ApplicationLogLevel: !Ref ApplicationLogLevel
+        SystemLogLevel: !Ref SystemLogLevel
       ScalingConfig:
         MaxEnvironments: !Ref MaxEnvironments
       ThrottleConfig:

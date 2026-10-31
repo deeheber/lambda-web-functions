@@ -82,7 +82,10 @@ describe('template.yaml', () => {
       const p = f.Properties!;
       expect(p.Timeout).toBe('TimeoutSeconds');
       expect(p.MaxConcurrencyPerEnvironment).toBe('MaxConcurrencyPerEnvironment');
-      expect(p.LoggingConfig).toEqual({ ApplicationLogLevel: 'ApplicationLogLevel' });
+      expect(p.LoggingConfig).toEqual({
+        ApplicationLogLevel: 'ApplicationLogLevel',
+        SystemLogLevel: 'SystemLogLevel',
+      });
       expect(p.ScalingConfig).toEqual({ MaxEnvironments: 'MaxEnvironments' });
       expect(p.ThrottleConfig).toEqual({ RateLimit: 'RateLimit' });
     }
@@ -100,7 +103,7 @@ describe('template.yaml', () => {
   it('parameters have the SPEC defaults and ranges', () => {
     const p = t.Parameters!;
     expect(Object.keys(p).sort()).toEqual(
-      ['ApplicationLogLevel', 'MaxConcurrencyPerEnvironment', 'MaxEnvironments', 'RateLimit', 'TimeoutSeconds'],
+      ['ApplicationLogLevel', 'MaxConcurrencyPerEnvironment', 'MaxEnvironments', 'RateLimit', 'SystemLogLevel', 'TimeoutSeconds'],
     );
     expect(p.TimeoutSeconds).toMatchObject({ Type: 'Number', Default: 30, MinValue: 3, MaxValue: 900 });
     expect(p.MaxConcurrencyPerEnvironment).toMatchObject({ Type: 'Number', Default: 64, MinValue: 1, MaxValue: 128 });
@@ -116,6 +119,11 @@ describe('template.yaml', () => {
       Type: 'String',
       Default: 'INFO',
       AllowedValues: ['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'],
+    });
+    expect(p.SystemLogLevel).toMatchObject({
+      Type: 'String',
+      Default: 'WARN',
+      AllowedValues: ['DEBUG', 'INFO', 'WARN'],
     });
   });
 
