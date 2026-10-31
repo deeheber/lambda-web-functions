@@ -53,7 +53,7 @@ cfn-lint template.yaml
 
 None of these call AWS. Build and deploy through npm (not bare `sam`) so SAM finds the local esbuild.
 
-`npm test` includes a SAM build in `test/bundle.test.ts`, so it requires the SAM CLI and network access and can take several minutes.
+`npm test` runs the regular tests without building. Run `npm run test:bundle` separately to build and check that the packaged app serves `/health`. This requires the SAM CLI, may need network access to install uncached dependencies, and can take several minutes.
 
 ## Deploy
 
