@@ -8,7 +8,7 @@ Started: 2026-10-31T19:05:25.860Z
 - [x] P1-01 Switch auth to AUTH_MODE across config, middleware, app and server
 - [x] P1-02 Add dev and dev:public scripts
 - [x] P1-03 Phase 1 end: push and list manual checks
-- [ ] P2-01 Add the SAM template, samconfig and sam build
+- [x] P2-01 Add the SAM template, samconfig and sam build
 - [ ] P2-02 Wire deploy and teardown to the SAM CLI and delete the 0.1 build
 - [ ] P2-03 Phase 2 end: push and list manual checks
 - [ ] P3-01 Update the smoke and test-user scripts for the SAM stack
@@ -35,3 +35,7 @@ Manual check: NOT VERIFIED (human)
 - `curl -N localhost:3000/stream` -> ticks arrive one at a time.
 - `npm run dev:public`, then `curl -i localhost:3001/whoami` -> 401 with WWW-Authenticate: Bearer; `curl -i localhost:3001/health` -> 200.
 - Starting with AUTH_MODE=none fails at startup.
+
+### P2-01 — c335bd9
+
+template.yaml, samconfig.toml, .aws-sam/ ignored (git + eslint), build = sam build. cfn-lint and sam build pass; both build dirs contain server.js. Tests: template.test.ts, scripts.test.ts additions.
