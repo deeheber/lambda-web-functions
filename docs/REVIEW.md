@@ -1,72 +1,45 @@
 # Review: build/2026-10-31 (flight sam-two-functions)
-Round: 1
+Round: 2
 
 ## Verdict
 
-CHANGES REQUESTED
+APPROVED
 
-Constraints (category 1) and boundaries (category 2) are clean, and so is spec drift. Every acceptance test named in PLAN exists and passes. `kukulu_verify` is green: all 18 constraints passed with no fixture failures and no hits, and typecheck, lint, `npm test` (11 files, 108 tests) and `npm run build` (`sam build`) all passed. Mutation sampling found untested mechanics in two files: `src/app.ts` (3 survivors) and `scripts/env.sh` (4 survivors). Each gets one fix task, and both fixes add tests only.
+Categories 1–3 are clean across the whole branch, and no task is blocked or skipped. Since the round-1 review (`2e8489f`), the branch changed only `test/app.test.ts` and `test/scripts.test.ts` (R1-01, R1-02), plus pipeline bookkeeping in `docs/HANDOFF.md`, `docs/PROGRESS.md` and `.kukulu/state.json`. No `src/`, `scripts/`, `template.yaml` or config file changed, so the round-1 whole-branch findings still hold for constraints, boundaries, spec drift and the interpretation choices.
+
+`kukulu_verify` (run by me at `6451b66`):
+- All 18 constraints passed, with no fixture failures and no hits.
+- `npm run typecheck`, `npm run lint`, `npm test` (11 files, 115 tests) and `npm run build` (`sam build`) all passed.
 
 ## Findings
 
-### F1. Category 3 (tests): three mechanics in `src/app.ts` are untested (P1-01)
+None.
 
-- `src/app.ts:31-35`: the request counter runs before auth. PLAN Decisions ("requestCount semantics") says it counts once per request, rejected ones included, before auth. I swapped the two `app.use` calls so auth runs first, which means rejected requests are no longer counted. That mutant survived `test/app.test.ts`, `test/auth.test.ts` and `test/stream.test.ts`. `requestCount rises by one per request` only sends accepted iam requests, so it cannot see the order.
-  - What would break: a refactor could stop counting 401s, and `/whoami` would silently under-report environment reuse.
-  - Fix: add a jwt-mode test. Send `/whoami` with a token (count n), then `/whoami` without a token (401), then `/whoami` with a token again. The last count must be n + 2.
-- `src/app.ts:30`: I deleted `app.disable('x-powered-by')` and the mutant survived. PLAN P1-01 says this line stays. Fix: assert that the `x-powered-by` header is absent.
-- `src/app.ts:21-24`: I deleted the `res.headersSent` branch of `errorHandler` and the mutant survived. This branch matters for `/stream`: an error after `flushHeaders()` must end the response rather than try to send a 500. Fix: add an `errorHandler` test with a route that writes a partial body and then calls `next(err)`. The response must complete with the original status and the partial body, and must not hang or throw `ERR_HTTP_HEADERS_SENT`.
-- Task: R1-01.
+## Round-2 mutation check
 
-### F2. Category 3 (tests): `scripts/env.sh` mechanics from the P3-01 rework are untested (P3-01)
-
-`env.sh takes the stack name and Region from samconfig.toml` runs only in the repo root with no `AWS_REGION` in the inherited shell, so it cannot tell the designed behaviour from a weaker one. Four mutants survived `test/scripts.test.ts`:
-- `scripts/env.sh:13`: `AWS_REGION="$(_samconfig_value region)"` changed to `AWS_REGION="${AWS_REGION:-$(_samconfig_value region)}"`. A caller's `AWS_REGION` then wins. That is exactly the 0.1 hazard that PLAN P3-01 and PLAN Spec issues ("Region and stack name in two places") set out to remove: the smoke scripts would query a different Region than `sam deploy` used. The test passes only because the reviewer's shell had no `AWS_REGION` set.
-- `scripts/env.sh:18`: `export AWS_REGION` deleted. The `aws` CLI children of `create-test-user.sh` and `smoke-jwt.sh` would then not see the Region.
-- `scripts/env.sh:14`: the "could not read stack_name and region" guard disabled (`if false; then`).
-- `scripts/env.sh:3`: the `samconfig.toml` lookup changed from `${BASH_SOURCE[0]}` to `$(pwd)`. PLAN P3-01 says to locate the file from `${BASH_SOURCE[0]}`, not from the caller's working directory. The test runs with `cwd: root`, so it cannot tell the difference.
-- What would break: `npm run smoke:iam`, `create-test-user` and `smoke:jwt` could target the wrong Region or stack with no error.
-- Fix: add tests only. The bash children inherit the environment (no `env` option), and the test file must not spell `process.env`.
-- Task: R1-02.
-
-## Mutation sampling (round 1)
+Per the round-2 rule, I mutated only the files of the round-1 fix tasks. I re-ran every round-1 survivor in those files. Each kill used the targeted `vitest` command with `confirmKill: true`, and every re-run on the unmutated tree passed. So each kill below is real.
 
 | File | Mutant | Result | Caught by |
 |---|---|---|---|
-| `src/auth/index.ts` | `/health` exemption becomes `/healthz` | killed | auth `jwt mode allows /health without a token`, app `GET /health returns 200 in jwt mode without a token` |
-| `src/auth/index.ts` | construction-time throw for jwt without a verifier removed | killed | auth and app `throws ... without a verifier` |
-| `src/config.ts` | unknown `AUTH_MODE` falls back to iam | killed | config `throws on an unknown AUTH_MODE: *`, server `exits non-zero when AUTH_MODE is none` |
-| `src/config.ts` | `COGNITO_CLIENT_ID` not required | killed | config `throws in jwt mode when COGNITO_CLIENT_ID is missing` |
-| `src/app.ts` | counter moved after auth | **survived** | none |
-| `src/app.ts` | `x-powered-by` left enabled | **survived** | none |
-| `src/app.ts` | `headersSent` branch removed | **survived** | none |
-| `src/app.ts` | `notFoundHandler` removed | killed | app `unknown path returns 404 not_found in iam mode` |
-| `src/app.ts` | `requestCount = 1` | killed | app `requestCount rises by one per request` |
-| `src/server.ts` | verifier built from a hard-coded pool, not `config.auth.cognito` | killed | server `exits non-zero in jwt mode with a malformed COGNITO_USER_POOL_ID` |
-| `src/routes/whoami.ts` | `subject: null` | killed | app `GET /whoami in jwt mode with a valid token ...` |
-| `src/auth/jwt-verifier.ts` | `tokenUse: 'id'` | killed | jwt-verifier `resolves a valid access token`, `rejects an id token` |
-| `src/routes/stream.ts` | `tick += 2` | killed | stream `streams stream.ticks events then ends` |
-| `template.yaml` | iam `EndpointType: MultiRegion` | killed | template `both functions have a HomeRegion endpoint ...` |
-| `template.yaml` | public `AuthType: IamAuth` | killed | template `the IamAuth function ...`, `the ApplicationManaged function ...`, `every function's AUTH_MODE matches its AuthType` |
-| `scripts/env.sh` | caller `AWS_REGION` wins | **survived** | none |
-| `scripts/env.sh` | `export AWS_REGION` removed | **survived** | none |
-| `scripts/env.sh` | unreadable-samconfig guard disabled | **survived** | none |
-| `scripts/env.sh` | samconfig located from `$(pwd)` | **survived** | none |
-| `scripts/smoke-iam.ts` | `service: 'execute-api'` | killed | scripts `smoke-iam.ts signs for service lambda ...` |
-| `scripts/smoke-iam.ts` | `who.authMode === 'iam'` check removed | survived | none (see Notes) |
-| `scripts/smoke-iam.ts` | `who.subject === null` check removed | survived | none (see Notes) |
-| `scripts/smoke-iam.ts` | unsigned-403 check weakened | survived | none (see Notes) |
+| `src/app.ts` | request counter moved after auth | killed | app `requestCount counts rejected requests` (8 vs 9) |
+| `src/app.ts` | `app.disable('x-powered-by')` deleted | killed | app `does not send X-Powered-By` |
+| `src/app.ts` | `res.headersSent` branch of `errorHandler` deleted | killed | errorHandler `ends the response when headers were already sent` (`Error: aborted`) |
+| `scripts/env.sh` | caller `AWS_REGION` wins (`${AWS_REGION:-...}`) | killed | scripts `env.sh overrides a caller AWS_REGION with samconfig.toml` |
+| `scripts/env.sh` | `export AWS_REGION` deleted | killed | scripts `env.sh exports AWS_REGION` |
+| `scripts/env.sh` | unreadable-samconfig guard disabled (`if false`) | killed | scripts `env.sh fails clearly without a readable samconfig.toml` |
+| `scripts/env.sh` | samconfig located from `$(pwd)` | killed | scripts `env.sh finds samconfig.toml from its own location, not the cwd` (plus the unreadable-samconfig test) |
 
-Every kill with a targeted command was re-run on the unmutated tree with `confirmKill`, and every re-run passed.
+Each delivered test matches the acceptance test that PLAN `## Review fixes (round 1)` R1-01 and R1-02 name for it, in name, setup and assertion. Neither task changed a source or script file, as their design constraints required. The new tests stay inside the constraints: none spells `process.env`, the bash children inherit the environment (no `env` option), nothing calls AWS, and temp directories are removed in `finally`.
 
-## Other checks (clean)
+## PR checks
 
-- Constraints: `kukulu_verify` reported every rule passing with no fixture failures. Reading the diff, I found no top-level `await`, no mutated top-level literals in `src/`, no `lambda-web-` anywhere in `src/` or `template.yaml`, and `aws-jwt-verify` imported only by the adapter.
-- Boundaries: `src/` imports nothing from `scripts/` or `test/`, and `scripts/` imports nothing from `src/`. `src/auth/index.ts` imports `AuthConfig` from `../config.ts` with `import type` only. The `.gitignore` changes (add `.aws-sam/`, remove `*.zip`) and the `eslint.config.js` `.aws-sam/` ignore are the ones PLAN P2-01 and P2-02 called for.
-- Spec drift: `template.yaml` matches SPEC section 4 and PLAN P2-01. `samconfig.toml` matches SPEC section 4. The `/whoami` key order, the listening line with `authMode`, and building the verifier only in jwt mode all match SPEC section 6 and PLAN P1-01. The bundle test copies `server.js` to a temp dir as SPEC section 7 requires. The README covers the SPEC section 8 Phase 3 list in the order PLAN P3-02 gives. The CLAUDE.md module map matches the code.
-- HANDOFF interpretation choices: all four are consistent with SPEC and PLAN. The empty commits for phase-end tasks follow the phase-end protocol in CLAUDE.md.
-- Blocked and skipped tasks: none.
-- Clean-room: not active for this flight (`kukulu_status.cleanroom` is null, and `.kukulu/cleanroom/` does not exist).
+`kukulu_status.prChecks` reports `fail` for `CodeRabbit`. I checked this myself and it is not a finding for this flight:
+- `gh pr list --head build/2026-10-31 --state all` returns only PR #5. That PR is `MERGED` into `main`, at head `af1b8ce`.
+- This branch's head is `6451b66`, and no PR is open for it yet.
+- On PR #5, `gh pr view 5` shows CodeRabbit as `COMPLETED / CANCELLED`, not failed.
+- The repo has no `.github/workflows`, so this branch has no CI of its own.
+
+The round-1 review recorded the same thing.
 
 ## Spec issues
 
@@ -82,7 +55,10 @@ All NOT VERIFIED (human), copied from HANDOFF.md:
 
 ## Notes
 
-- `scripts/smoke-iam.ts` survivors (advisory, no task). The `/whoami` `authMode`/`subject` checks and the unsigned-403 check run only against a deployed `IamAuth` endpoint. The script also refuses non-`https://` URLs and resolves AWS credentials. An offline test would need a fake TLS server that mimics SigV4 rejection, or a text grep that only restates the code. Both cost more than they prove for manual-only tooling. The Phase 3 manual check runs the script for real. The risk that remains: if one of these checks were deleted, the smoke run would pass falsely.
-- `prChecks` from `kukulu_status` shows `fail` for CodeRabbit. That result belongs to PR #5, the already-merged `init-setup` PR (base `main`), which used the same head branch name `build/2026-10-31`. On PR #5 the CodeRabbit check is `CANCELLED`, not failed. It says nothing about this flight. A round-2 reviewer should not treat it as a category-3 finding. The operator should also expect `pr=draft` to collide with the merged PR #5 on that branch name. I logged this as pipeline feedback.
-- `README.md` "Environment reuse" says to call `/whoami` "several times on each endpoint". On `lwf-iam` a plain `curl` gets 403. The signed path is `npm run smoke:iam`. A pointer there would help a newcomer, but this is not a SPEC requirement.
-- `scripts/env.sh` unsets `_samconfig` only on the success path. This is harmless.
+- `test/scripts.test.ts` `env.sh exports AWS_REGION` (advisory). The test inherits the caller's environment. If the shell running `npm test` already exports `AWS_REGION`, the assignment in `env.sh` keeps it exported, so the test would also pass without `export AWS_REGION`. It killed the mutant here because this shell does not export `AWS_REGION`. Prefixing the `bash -c` script with `unset AWS_REGION;` would make the test independent of the environment without spelling `process.env`. This is a robustness gap in the test, not a gap in coverage. It is a note and not a finding, for two reasons:
+  - PLAN R1-02 acceptance test (2) specifies exactly this command, `bash -c 'source scripts/env.sh && printenv AWS_REGION'`, and does not require independence from the caller's environment, so the delivered test matches its task.
+  - The kill is real on the machine that runs verify.
+- Carried from round 1: the `scripts/smoke-iam.ts` survivors (the `/whoami` `authMode`/`subject` checks and the unsigned-403 check) are still untested offline. The Phase 3 manual run covers them.
+- Carried from round 1: the README "Environment reuse" section could point `lwf-iam` readers at `npm run smoke:iam`, because a plain `curl` gets 403 there.
+- Carried from round 1: `scripts/env.sh` unsets `_samconfig` only on the success path. This is harmless.
+- `pr=draft`: the head branch name `build/2026-10-31` was already used by the merged PR #5. The operator should check that the new draft PR targets `flight/sam` and is not confused with #5.
