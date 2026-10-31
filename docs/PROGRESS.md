@@ -20,6 +20,7 @@ Started: 2026-10-31T18:07:39.064Z
 - [x] P3-02 Add the SigV4 IAM smoke script
 - [x] P3-03 Write the README
 - [x] P3-04 Push phase 3 and list the manual checks
+- [ ] R1-01 Test the Cognito JWT adapter offline with locally signed tokens
 
 ## Log
 
