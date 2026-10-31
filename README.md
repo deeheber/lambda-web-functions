@@ -36,19 +36,20 @@ The default Region is `us-west-2`; override it with `AWS_REGION`. The stack name
 
 ```sh
 npm ci
-npm run dev
+npm run dev          # iam mode on 127.0.0.1:3000
+npm run dev:public   # jwt mode on 127.0.0.1:3001
 ```
 
 In another terminal:
 
 ```sh
-curl -i -H 'lambda-web-endpoint-name: iam' localhost:3000/whoami      # 200
-curl -i -H 'lambda-web-endpoint-name: public' localhost:3000/whoami   # 401, WWW-Authenticate: Bearer
-curl -i localhost:3000/whoami                                          # 401
-curl -N -H 'lambda-web-endpoint-name: iam' localhost:3000/stream      # ticks arrive one at a time
+curl -i localhost:3000/whoami      # 200, authMode: iam
+curl -N localhost:3000/stream      # ticks arrive one at a time
+curl -i localhost:3001/whoami      # 401, WWW-Authenticate: Bearer
+curl -i localhost:3001/health      # 200
 ```
 
-Locally the `public` path rejects every token, which is expected.
+The local `public` server rejects every token, which is expected.
 
 ## Checks
 
@@ -105,10 +106,9 @@ App config (`src/config.ts`), the only reader of `process.env`:
 | Env var | Key | Default | Notes |
 |---|---|---|---|
 | `AWS_LAMBDA_HTTP_ENDPOINT` | `listen.host`, `listen.port` | `127.0.0.1:3000` | Set by Lambda. The default is for local dev only |
-| `AUTH_ENDPOINT_IAM` | `auth.iamEndpointName` | required | `iam` in the template |
-| `AUTH_ENDPOINT_JWT` | `auth.jwtEndpointName` | required | `public` in the template. Must differ from the IAM name |
-| `COGNITO_USER_POOL_ID` | `auth.cognito.userPoolId` | required | |
-| `COGNITO_CLIENT_ID` | `auth.cognito.clientId` | required | |
+| `AUTH_MODE` | `auth.mode` | required | `iam` or `jwt`; anything else fails at startup |
+| `COGNITO_USER_POOL_ID` | `auth.cognito.userPoolId` | required when `jwt` | |
+| `COGNITO_CLIENT_ID` | `auth.cognito.clientId` | required when `jwt` | |
 | `STREAM_TICKS` | `stream.ticks` | `5` | Starting guess |
 | `STREAM_INTERVAL_MS` | `stream.intervalMs` | `500` | Starting guess |
 

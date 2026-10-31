@@ -22,6 +22,31 @@ describe('scripts', () => {
     }
   });
 
+  it('dev bundles src/server.ts as CJS and runs it in iam mode', () => {
+    const pkg = JSON.parse(readFileSync(`${root}package.json`, 'utf8')) as { scripts: Record<string, string> };
+    const dev = pkg.scripts.dev!;
+    expect(dev).toContain('--format=cjs');
+    expect(dev).toContain('dist/package.json');
+    expect(dev).toContain('AUTH_MODE=iam');
+    expect(dev).toContain('node dist/index.js');
+    expect(dev).not.toContain('AWS_LAMBDA_HTTP_ENDPOINT');
+    expect(dev).not.toContain('COGNITO_');
+  });
+
+  it('dev:public runs jwt mode on 127.0.0.1:3001 with a well-formed local pool id', () => {
+    const pkg = JSON.parse(readFileSync(`${root}package.json`, 'utf8')) as { scripts: Record<string, string> };
+    const dev = pkg.scripts['dev:public']!;
+    for (const part of [
+      '--format=cjs',
+      'AUTH_MODE=jwt',
+      'AWS_LAMBDA_HTTP_ENDPOINT=127.0.0.1:3001',
+      'COGNITO_USER_POOL_ID=us-west-2_000000000',
+      'COGNITO_CLIENT_ID=local',
+    ]) {
+      expect(dev).toContain(part);
+    }
+  });
+
   it('package.json wires deploy and teardown to the scripts', () => {
     const pkg = JSON.parse(readFileSync(`${root}package.json`, 'utf8')) as { scripts: Record<string, string> };
     expect(pkg.scripts.deploy).toBe('bash scripts/deploy.sh');
