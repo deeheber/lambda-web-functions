@@ -19,5 +19,13 @@
     "dir": "docs/flights/init-setup",
     "at": "2026-10-31T18:25:41.256Z"
   },
-  "breaking": false
+  "breaking": false,
+  "timeline": [
+    {
+      "event": "start",
+      "stage": "plan",
+      "round": 0,
+      "at": "2026-10-31T18:47:27.018Z"
+    }
+  ]
 }
