@@ -1,1 +1,5 @@
 .kukulu/implement.lock
+node_modules/
+dist/
+*.zip
+coverage/
