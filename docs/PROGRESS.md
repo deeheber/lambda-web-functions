@@ -13,7 +13,7 @@ Started: 2026-10-31T18:07:39.064Z
 - [x] P1-06 Push phase 1 and list the manual checks
 - [x] P2-01 Add the artifacts bucket template
 - [x] P2-02 Add the app template and the pairing invariant test
-- [ ] P2-03 Add the CJS bundle and zip build script
+- [x] P2-03 Add the CJS bundle and zip build script
 - [ ] P2-04 Add the deploy and teardown scripts
 - [ ] P2-05 Push phase 2 and list the manual checks
 - [ ] P3-01 Add the test-user and JWT smoke scripts
@@ -62,3 +62,7 @@ Tests: infra.test.ts artifacts describe (4). cfn-lint exit 0. Lint forbids expli
 ### P2-02 — 60643b9
 
 Tests: infra.test.ts app describe (9). cfn-lint exit 0. Parameter Descriptions for MaxEnvironments/RateLimit begin "ASSUMPTION - ". Revision has DeletionPolicy Delete + UpdateReplacePolicy Retain.
+
+### P2-03 — 6aaebe6
+
+Tests: bundle.test.ts (4) builds into a temp dir, unzips, runs the bundle. npm run build verified: zip lists only index.js. Build verify command now active.
