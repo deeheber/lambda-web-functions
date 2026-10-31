@@ -5,7 +5,7 @@ Started: 2026-10-31T18:07:39.064Z
 
 ## Tasks
 
-- [ ] P1-01 Scaffold the package and typed config loader
+- [x] P1-01 Scaffold the package and typed config loader
 - [ ] P1-02 Add env-info and the Cognito JWT verifier adapter
 - [ ] P1-03 Add the fail-closed auth middleware
 - [ ] P1-04 Add createApp with the health, whoami and stream routes
@@ -24,3 +24,7 @@ Started: 2026-10-31T18:07:39.064Z
 ## Log
 
 (one entry per task, appended by implement)
+
+### P1-01 — e38af95
+
+Tests: test/config.test.ts (13 incl. it.each). Interpretation: STREAM_INTERVAL_MS=0 accepted. Defaults are string constants DEFAULT_LISTEN/DEFAULT_STREAM_TICKS/DEFAULT_STREAM_INTERVAL_MS in src/config.ts. All deps installed (express, aws-jwt-verify, esbuild, yaml, supertest...). Vitest is v5.0.5.
