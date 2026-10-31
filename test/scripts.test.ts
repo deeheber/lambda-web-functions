@@ -107,7 +107,7 @@ describe('scripts', () => {
 
   it('smoke-iam.ts signs for service lambda and sets x-amz-content-sha256', () => {
     const text = readFileSync(`${root}scripts/smoke-iam.ts`, 'utf8');
-    expect(text).toContain("service: 'lambda'");
+    expect(text).toMatch(/service:\s*(['"])lambda\1/);
     expect(text).toContain('x-amz-content-sha256');
   });
 
