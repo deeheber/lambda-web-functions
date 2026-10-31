@@ -5,7 +5,6 @@ import { envId, startedAt } from '../env-info.ts';
 export const whoamiHandler: RequestHandler = (_req, res) => {
   const auth = res.locals.auth as AuthContext;
   res.json({
-    endpoint: auth.endpoint,
     authMode: auth.authMode,
     subject: auth.subject,
     envId,

@@ -1,40 +1,56 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.ts';
 
-const base = {
-  AUTH_ENDPOINT_IAM: 'iam',
-  AUTH_ENDPOINT_JWT: 'public',
-  COGNITO_USER_POOL_ID: 'pool',
-  COGNITO_CLIENT_ID: 'client',
-};
+const base = { AUTH_MODE: 'iam' };
+const jwt = { AUTH_MODE: 'jwt', COGNITO_USER_POOL_ID: 'pool', COGNITO_CLIENT_ID: 'client' };
 
 describe('loadConfig', () => {
   it('applies defaults when optional values are unset', () => {
     const c = loadConfig(base);
     expect(c.listen).toEqual({ host: '127.0.0.1', port: 3000 });
     expect(c.stream).toEqual({ ticks: 5, intervalMs: 500 });
-    expect(c.auth.iamEndpointName).toBe('iam');
-    expect(c.auth.cognito).toEqual({ userPoolId: 'pool', clientId: 'client' });
+    expect(c.auth).toEqual({ mode: 'iam' });
   });
 
-  it.each(['AUTH_ENDPOINT_IAM', 'AUTH_ENDPOINT_JWT', 'COGNITO_USER_POOL_ID', 'COGNITO_CLIENT_ID'])(
-    'throws when %s is missing',
+  it('parses iam mode and ignores Cognito values', () => {
+    const c = loadConfig({ ...base, COGNITO_USER_POOL_ID: 'pool', COGNITO_CLIENT_ID: 'client' });
+    expect(c.auth).toEqual({ mode: 'iam' });
+  });
+
+  it('parses jwt mode with Cognito values', () => {
+    expect(loadConfig(jwt).auth).toEqual({
+      mode: 'jwt',
+      cognito: { userPoolId: 'pool', clientId: 'client' },
+    });
+  });
+
+  it('throws when AUTH_MODE is missing or empty', () => {
+    expect(() => loadConfig({})).toThrow('AUTH_MODE is required');
+    expect(() => loadConfig({ AUTH_MODE: '' })).toThrow('AUTH_MODE is required');
+  });
+
+  it.each(['none', 'off', 'skip', 'disabled', 'IAM', 'JWT', ' iam', 'both'])(
+    'throws on an unknown AUTH_MODE: %s',
+    (mode) => {
+      expect(() => loadConfig({ AUTH_MODE: mode })).toThrow(/AUTH_MODE.*/);
+      expect(() => loadConfig({ AUTH_MODE: mode })).toThrow(mode);
+    },
+  );
+
+  it.each(['COGNITO_USER_POOL_ID', 'COGNITO_CLIENT_ID'])(
+    'throws in jwt mode when %s is missing',
     (name) => {
-      const env: Record<string, string | undefined> = { ...base };
+      const env: Record<string, string | undefined> = { ...jwt };
       delete env[name];
       expect(() => loadConfig(env)).toThrow(name);
+      expect(() => loadConfig({ ...jwt, [name]: '' })).toThrow(name);
     },
   );
 
   it('treats an empty string as unset', () => {
-    expect(() => loadConfig({ ...base, AUTH_ENDPOINT_IAM: '' })).toThrow('AUTH_ENDPOINT_IAM');
     const c = loadConfig({ ...base, STREAM_TICKS: '', STREAM_INTERVAL_MS: '', AWS_LAMBDA_HTTP_ENDPOINT: '' });
     expect(c.stream).toEqual({ ticks: 5, intervalMs: 500 });
     expect(c.listen.port).toBe(3000);
-  });
-
-  it('throws when the two endpoint names are equal', () => {
-    expect(() => loadConfig({ ...base, AUTH_ENDPOINT_JWT: 'iam' })).toThrow('AUTH_ENDPOINT');
   });
 
   it('throws when STREAM_TICKS is not a number', () => {
@@ -73,8 +89,13 @@ describe('loadConfig', () => {
 
   it('returns a deeply frozen object', () => {
     const c = loadConfig(base);
-    for (const o of [c, c.listen, c.auth, c.auth.cognito, c.stream]) {
+    for (const o of [c, c.listen, c.auth, c.stream]) {
       expect(Object.isFrozen(o)).toBe(true);
     }
+    const j = loadConfig(jwt);
+    for (const o of [j, j.listen, j.auth, j.stream]) {
+      expect(Object.isFrozen(o)).toBe(true);
+    }
+    expect(Object.isFrozen((j.auth as { cognito: object }).cognito)).toBe(true);
   });
 });

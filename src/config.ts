@@ -1,12 +1,15 @@
 export type Env = Readonly<Record<string, string | undefined>>;
 
+export type AuthConfig =
+  | { readonly mode: 'iam' }
+  | {
+      readonly mode: 'jwt';
+      readonly cognito: { readonly userPoolId: string; readonly clientId: string };
+    };
+
 export interface Config {
   readonly listen: { readonly host: string; readonly port: number };
-  readonly auth: {
-    readonly iamEndpointName: string;
-    readonly jwtEndpointName: string;
-    readonly cognito: { readonly userPoolId: string; readonly clientId: string };
-  };
+  readonly auth: AuthConfig;
   readonly stream: { readonly ticks: number; readonly intervalMs: number };
 }
 
@@ -46,15 +49,20 @@ function parseListen(value: string): { host: string; port: number } {
   return { host, port };
 }
 
+function parseAuth(env: Env): AuthConfig {
+  const mode = required(env, 'AUTH_MODE');
+  if (mode === 'iam') return Object.freeze({ mode });
+  if (mode === 'jwt') {
+    const userPoolId = required(env, 'COGNITO_USER_POOL_ID');
+    const clientId = required(env, 'COGNITO_CLIENT_ID');
+    return Object.freeze({ mode, cognito: Object.freeze({ userPoolId, clientId }) });
+  }
+  throw new Error(`AUTH_MODE must be "iam" or "jwt", got "${mode}"`);
+}
+
 export function loadConfig(env: Env = process.env): Config {
   const listen = parseListen(optional(env, 'AWS_LAMBDA_HTTP_ENDPOINT') ?? DEFAULT_LISTEN);
-  const iamEndpointName = required(env, 'AUTH_ENDPOINT_IAM');
-  const jwtEndpointName = required(env, 'AUTH_ENDPOINT_JWT');
-  if (iamEndpointName === jwtEndpointName) {
-    throw new Error('AUTH_ENDPOINT_IAM and AUTH_ENDPOINT_JWT must differ');
-  }
-  const userPoolId = required(env, 'COGNITO_USER_POOL_ID');
-  const clientId = required(env, 'COGNITO_CLIENT_ID');
+  const auth = parseAuth(env);
   const ticks = parseInteger('STREAM_TICKS', optional(env, 'STREAM_TICKS') ?? DEFAULT_STREAM_TICKS);
   if (ticks < 1) throw new Error('STREAM_TICKS must be at least 1');
   const intervalMs = parseInteger(
@@ -64,11 +72,7 @@ export function loadConfig(env: Env = process.env): Config {
 
   return Object.freeze({
     listen: Object.freeze(listen),
-    auth: Object.freeze({
-      iamEndpointName,
-      jwtEndpointName,
-      cognito: Object.freeze({ userPoolId, clientId }),
-    }),
+    auth,
     stream: Object.freeze({ ticks, intervalMs }),
   });
 }

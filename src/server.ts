@@ -8,7 +8,7 @@ import { envId } from './env-info.ts';
 const SHUTDOWN_DEADLINE_MS = 500;
 
 const config = loadConfig();
-const verifier = createJwtVerifier(config.auth.cognito);
+const verifier = config.auth.mode === 'jwt' ? createJwtVerifier(config.auth.cognito) : undefined;
 const app = createApp(config, { verifier });
 
 const server = app.listen(config.listen.port, config.listen.host, (err?: Error) => {
@@ -17,7 +17,7 @@ const server = app.listen(config.listen.port, config.listen.host, (err?: Error) 
     process.exit(1);
   }
   const { port } = server.address() as AddressInfo;
-  console.log(JSON.stringify({ msg: 'listening', host: config.listen.host, port, envId }));
+  console.log(JSON.stringify({ msg: 'listening', host: config.listen.host, port, envId, authMode: config.auth.mode }));
 });
 
 process.on('SIGTERM', () => {

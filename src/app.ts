@@ -9,7 +9,7 @@ import { createStreamHandler } from './routes/stream.ts';
 import { whoamiHandler } from './routes/whoami.ts';
 
 export interface AppDeps {
-  readonly verifier: JwtVerifier;
+  readonly verifier?: JwtVerifier;
 }
 
 export const notFoundHandler: RequestHandler = (_req, res) => {

@@ -55,10 +55,7 @@ describe('scripts/build.sh', () => {
     const child = spawn(process.execPath, [join(extracted, 'index.js')], {
       env: {
         AWS_LAMBDA_HTTP_ENDPOINT: '127.0.0.1:0',
-        AUTH_ENDPOINT_IAM: 'iam',
-        AUTH_ENDPOINT_JWT: 'public',
-        COGNITO_USER_POOL_ID: 'us-west-2_000000000',
-        COGNITO_CLIENT_ID: 'local',
+        AUTH_MODE: 'iam',
       },
     });
     children.push(child);
@@ -82,7 +79,7 @@ describe('scripts/build.sh', () => {
     });
     const status = await new Promise<number | undefined>((resolve, reject) => {
       http
-        .get({ host: '127.0.0.1', port, path: '/health', headers: { 'lambda-web-endpoint-name': 'iam' } }, (r) => {
+        .get({ host: '127.0.0.1', port, path: '/health' }, (r) => {
           r.resume();
           resolve(r.statusCode);
         })
