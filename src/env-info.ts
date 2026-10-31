@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from "node:crypto";
 
 export const envId: string = randomUUID();
 export const startedAt: string = new Date().toISOString();

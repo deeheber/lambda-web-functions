@@ -1,15 +1,15 @@
-import js from '@eslint/js';
-import tseslint from 'typescript-eslint';
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ['.aws-sam/', 'dist/', 'node_modules/', 'coverage/'] },
+  { ignores: [".aws-sam/", "dist/", "node_modules/", "coverage/"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
     rules: {
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
     },
   },
