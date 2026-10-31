@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -61,10 +61,21 @@ describe('scripts', () => {
     expect(pkg.dependencies.esbuild).toBeUndefined();
   });
 
-  it('package.json wires deploy and teardown to the scripts', () => {
+  it('package.json wires build, deploy and teardown to the SAM CLI', () => {
     const pkg = JSON.parse(readFileSync(`${root}package.json`, 'utf8')) as { scripts: Record<string, string> };
-    expect(pkg.scripts.deploy).toBe('bash scripts/deploy.sh');
-    expect(pkg.scripts.teardown).toBe('bash scripts/teardown.sh');
+    expect(pkg.scripts.build).toBe('sam build');
+    expect(pkg.scripts.deploy).toBe('sam build && sam deploy');
+    expect(pkg.scripts.teardown).toBe('sam delete --no-prompts');
+  });
+
+  it('the 0.1 infra and build scripts are gone', () => {
+    for (const path of ['infra', 'scripts/build.sh', 'scripts/deploy.sh', 'scripts/teardown.sh']) {
+      expect(existsSync(`${root}${path}`), path).toBe(false);
+    }
+  });
+
+  it('env.sh no longer defines ARTIFACTS_STACK_NAME', () => {
+    expect(readFileSync(`${root}scripts/env.sh`, 'utf8')).not.toContain('ARTIFACTS_STACK_NAME');
   });
 
   it('package.json wires create-test-user and smoke:jwt to the scripts', () => {
