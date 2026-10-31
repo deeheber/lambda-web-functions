@@ -23,3 +23,8 @@ export interface VerifiedToken {
 export interface JwtVerifier {
   verify(token: string): Promise<VerifiedToken>;
 }
+
+/** A JSON Web Key Set document; types only, the JWT library stays in the adapter. */
+export interface Jwks {
+  keys: Array<{ kty?: string; kid?: string; alg?: string; use?: string; [k: string]: unknown }>;
+}
