@@ -11,7 +11,7 @@ Started: 2026-10-31T19:05:25.860Z
 - [x] P2-01 Add the SAM template, samconfig and sam build
 - [x] P2-02 Wire deploy and teardown to the SAM CLI and delete the 0.1 build
 - [x] P2-03 Phase 2 end: push and list manual checks
-- [ ] P3-01 Update the smoke and test-user scripts for the SAM stack
+- [x] P3-01 Update the smoke and test-user scripts for the SAM stack
 - [ ] P3-02 Rewrite the README and confirm the CLAUDE.md module map
 - [ ] P3-03 Phase 3 end: push and list manual checks
 
@@ -51,3 +51,7 @@ Manual check: NOT VERIFIED (human)
 - `npm run deploy` succeeds in us-west-2.
 - The Lambda console shows two functions: lwf-iam with one Active endpoint iam (IAM auth) and lwf-public with one Active endpoint public, each with one revision.
 - The first deploy created a code bucket stack named lwf-<hash>-WebFunctionCode.
+
+### P3-01 — 057f32a
+
+env.sh reads stack_name/region from samconfig.toml (overrides caller AWS_REGION), fails clearly if unreadable. smoke-iam /whoami check now authMode/subject/envId/requestCount. create-test-user.sh and smoke-jwt.sh needed no change. 3 tests added.
