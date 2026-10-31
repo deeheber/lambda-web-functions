@@ -15,7 +15,7 @@ Started: 2026-10-31T19:05:25.860Z
 - [x] P3-02 Rewrite the README and confirm the CLAUDE.md module map
 - [x] P3-03 Phase 3 end: push and list manual checks
 - [x] R1-01 Cover request counting order, x-powered-by and the headersSent error path in src/app.ts
-- [ ] R1-02 Test the samconfig.toml-only Region, export, failure guard and BASH_SOURCE lookup in scripts/env.sh
+- [x] R1-02 Test the samconfig.toml-only Region, export, failure guard and BASH_SOURCE lookup in scripts/env.sh
 
 ## Log
 
@@ -74,3 +74,7 @@ Manual check: NOT VERIFIED (human)
 ### R1-01 — 247d36e
 
 Added 3 tests in test/app.test.ts (count of rejected requests, no x-powered-by, headersSent path). No src changes. Mutants not re-run via kukulu_mutate (tool unavailable to me); full verify green.
+
+### R1-02 — afc9746
+
+Added 4 env.sh tests in test/scripts.test.ts (samconfig region overrides caller, exported, unreadable guard, BASH_SOURCE lookup). No script changes. Mutants not re-run via kukulu_mutate (tool unavailable); full verify green.
