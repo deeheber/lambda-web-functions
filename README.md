@@ -55,9 +55,11 @@ npm run build
 cfn-lint template.yaml
 ```
 
-None of these call AWS. Build and deploy through npm (not bare `sam`) so SAM finds the local esbuild.
+None of these call AWS. Build and deploy through `npm run build` and `npm run deploy`. These commands add `package.json` with `"type": "module"` to each Lambda bundle; bare `sam build` omits that step.
 
-`npm test` runs the regular tests without building. Run `npm run test:bundle` separately to build and check that the packaged app serves `/health`. This requires the SAM CLI, may need network access to install uncached dependencies, and can take several minutes.
+Lambda packages use `server.js` with the ESM package marker because SAM rewrites the runtime entry point to that filename.
+
+`npm test` runs the regular tests without building. Run `npm run test:bundle` separately to build both function packages and check `/health` and `/whoami` authentication behavior. This requires the SAM CLI, may need network access to install uncached dependencies, and can take several minutes.
 
 ## Deploy
 
@@ -76,7 +78,7 @@ npm run smoke:iam
 npm run smoke:jwt:user -- you@example.com
 ```
 
-`smoke:jwt:user` creates the user or resets its password. To use an existing token, run `npm run smoke:jwt -- "$TOKEN"`.
+Cognito self-service signup is disabled after deployment. `smoke:jwt:user` uses administrator APIs to create the user or reset its password. To use an existing token, run `npm run smoke:jwt -- "$TOKEN"`.
 
 ## Environment reuse
 

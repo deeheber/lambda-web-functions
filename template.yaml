@@ -36,6 +36,8 @@ Resources:
   UserPool:
     Type: AWS::Cognito::UserPool
     Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
       UsernameAttributes:
         - email
       AutoVerifiedAttributes:
@@ -55,7 +57,9 @@ Resources:
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        Format: cjs
+        Format: esm
+        Banner:
+          - 'js=import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
         Target: node24
         EntryPoints:
           - src/server.ts
@@ -85,7 +89,9 @@ Resources:
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        Format: cjs
+        Format: esm
+        Banner:
+          - 'js=import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
         Target: node24
         EntryPoints:
           - src/server.ts

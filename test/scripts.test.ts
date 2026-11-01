@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,6 +26,43 @@ describe('scripts', () => {
     expect(r.status, r.stderr).toBe(2);
     expect(r.stderr).toContain('usage');
     expect(r.stdout).toBe('');
+  });
+});
+
+describe('ESM build finalization', () => {
+  let fixture: string;
+
+  beforeEach(() => {
+    fixture = mkdtempSync(join(tmpdir(), 'lwf-esm-build-'));
+    mkdirSync(join(fixture, 'scripts'));
+    copyFileSync(join(root, 'scripts/finalize-esm-build.ts'), join(fixture, 'scripts/finalize-esm-build.ts'));
+    for (const name of ['IamFunction', 'PublicFunction']) {
+      mkdirSync(join(fixture, '.aws-sam/build', name), { recursive: true });
+      writeFileSync(join(fixture, '.aws-sam/build', name, 'server.js'), 'export {};');
+    }
+  });
+
+  afterEach(() => rmSync(fixture, { recursive: true, force: true }));
+
+  it('marks both packages as ESM relative to the script rather than the working directory', () => {
+    const r = spawnSync(process.execPath, [join(fixture, 'scripts/finalize-esm-build.ts')], {
+      cwd: tmpdir(), encoding: 'utf8',
+    });
+    expect(r.status, r.stderr).toBe(0);
+    for (const name of ['IamFunction', 'PublicFunction']) {
+      expect(JSON.parse(readFileSync(join(fixture, '.aws-sam/build', name, 'package.json'), 'utf8')))
+        .toEqual({ type: 'module' });
+    }
+  });
+
+  it('fails before writing package markers when a bundle is missing', () => {
+    rmSync(join(fixture, '.aws-sam/build/PublicFunction/server.js'));
+    const r = spawnSync(process.execPath, [join(fixture, 'scripts/finalize-esm-build.ts')], { encoding: 'utf8' });
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toContain('PublicFunction/server.js');
+    for (const name of ['IamFunction', 'PublicFunction']) {
+      expect(existsSync(join(fixture, '.aws-sam/build', name, 'package.json'))).toBe(false);
+    }
   });
 });
 
