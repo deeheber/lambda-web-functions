@@ -27,6 +27,12 @@ function byAuth(authType: string): Resource {
 }
 
 describe('template.yaml deployment contracts', () => {
+  it('restricts Cognito user registration to administrators', () => {
+    expect(t.Resources.UserPool!.Properties).toMatchObject({
+      AdminCreateUserConfig: { AllowAdminCreateUserOnly: true },
+    });
+  });
+
   it('uses iam mode on the IAM endpoint without Cognito configuration', () => {
     const env = byAuth('IamAuth').Properties!.EnvironmentVariables;
     expect(env).toMatchObject({ AUTH_MODE: 'iam' });

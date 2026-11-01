@@ -14,5 +14,6 @@
 
 ## Bundle pitfalls
 
-- Keep `src/` compatible with the deployed CommonJS bundle: no `import.meta` or top-level `await`.
-- To run the SAM-built `server.js` locally, copy it outside the repository's ESM package scope, as `test/bundle.test.ts` does. The dev scripts already create their own CommonJS package boundary.
+- Build and deploy through `npm run build` and `npm run deploy`. Bare `sam build` omits the package markers needed to run the ESM bundles.
+- Keep the esbuild `createRequire` banner: bundled CommonJS dependencies need it to load Node built-ins.
+- When testing a packaged function in isolation, copy both `server.js` and its generated `package.json`.

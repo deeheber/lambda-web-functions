@@ -55,7 +55,9 @@ npm run build
 cfn-lint template.yaml
 ```
 
-None of these call AWS. Build and deploy through npm (not bare `sam`) so SAM finds the local esbuild.
+None of these call AWS. Build and deploy through `npm run build` and `npm run deploy`. These commands add `package.json` with `"type": "module"` to each Lambda bundle; bare `sam build` omits that step.
+
+Lambda packages use `server.js` with the ESM package marker because SAM rewrites the runtime entry point to that filename.
 
 `npm test` runs the regular tests without building. Run `npm run test:bundle` separately to build and check that the packaged app serves `/health`. This requires the SAM CLI, may need network access to install uncached dependencies, and can take several minutes.
 
