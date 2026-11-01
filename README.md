@@ -71,11 +71,10 @@ The test-user and deployment smoke scripts read these same settings, overriding 
 
 ```sh
 npm run smoke:iam
-TOKEN=$(npm run --silent create-test-user -- you@example.com)
-npm run smoke:jwt -- "$TOKEN"
+npm run smoke:jwt:user -- you@example.com
 ```
 
-`npm run create-test-user` creates the user (or resets its password) and prints a fresh access token. `npm run smoke:iam` signs requests and checks that unsigned calls get 403. `npm run smoke:jwt` checks access with and without the token.
+`smoke:jwt:user` creates the user or resets its password. To use an existing token, run `npm run smoke:jwt -- "$TOKEN"`.
 
 ## Environment reuse
 
