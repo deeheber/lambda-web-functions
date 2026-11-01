@@ -45,6 +45,8 @@ curl -i localhost:3001/health      # 200
 
 ## Checks
 
+[GitHub Actions](.github/workflows/checks.yml) runs these checks and the bundle test when a PR targeting `main` is opened, reopened, or updated with new commits. To run the checks locally:
+
 ```sh
 npm run typecheck
 npm run lint
