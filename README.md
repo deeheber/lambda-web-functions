@@ -59,7 +59,7 @@ None of these call AWS. Build and deploy through `npm run build` and `npm run de
 
 Lambda packages use `server.js` with the ESM package marker because SAM rewrites the runtime entry point to that filename.
 
-`npm test` runs the regular tests without building. Run `npm run test:bundle` separately to build and check that the packaged app serves `/health`. This requires the SAM CLI, may need network access to install uncached dependencies, and can take several minutes.
+`npm test` runs the regular tests without building. Run `npm run test:bundle` separately to build both function packages and check `/health` and `/whoami` authentication behavior. This requires the SAM CLI, may need network access to install uncached dependencies, and can take several minutes.
 
 ## Deploy
 
@@ -78,7 +78,7 @@ npm run smoke:iam
 npm run smoke:jwt:user -- you@example.com
 ```
 
-`smoke:jwt:user` creates the user or resets its password. To use an existing token, run `npm run smoke:jwt -- "$TOKEN"`.
+Cognito self-service signup is disabled after deployment. `smoke:jwt:user` uses administrator APIs to create the user or reset its password. To use an existing token, run `npm run smoke:jwt -- "$TOKEN"`.
 
 ## Environment reuse
 
