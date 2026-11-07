@@ -1,107 +1,92 @@
-# Lambda Web Functions Hello World
+# Hello world
 
-A TypeScript Express 5 app deployed with AWS SAM as two Web Functions running the same code:
+An Express 5 app deployed with SAM as two Web Functions running the same code:
 
-- `lwf-iam`: endpoint `iam`, `AuthType: IamAuth`, `AUTH_MODE=iam`. Lambda checks the SigV4 signature; the app receives no caller identity.
-- `lwf-public`: endpoint `public`, `AuthType: ApplicationManaged`, `AUTH_MODE=jwt`. The app verifies a Cognito access token (JWT) itself.
+| Function | Authentication |
+|---|---|
+| `lwf-iam` | Lambda verifies signed requests; the app receives no caller identity. |
+| `lwf-public` | The app verifies a Cognito access token. `/health` needs no token. |
 
-A missing or unknown `AUTH_MODE` stops the app at startup.
+Use the [walkthrough](docs/walkthrough.md) for exercises. This README is the command reference.
+Run commands from `examples/hello-world`.
 
-Start with the [learning walkthrough](docs/walkthrough.md).
+## Run locally
 
-Run all commands below from `examples/hello-world`:
+Requires Node 24. From the repository root:
 
 ```sh
 cd examples/hello-world
+npm ci
+npm run dev          # IAM mode on localhost:3000
 ```
+
+In another terminal, from the same folder:
+
+```sh
+npm run dev:public   # JWT mode on localhost:3001
+```
+
+Stop servers with Ctrl+C. Local IAM mode does not enforce AWS signatures.
+Local JWT mode uses placeholder Cognito IDs; use a deployment to test valid tokens.
 
 ## Routes
 
-Both functions serve these routes after authentication:
-
-| Route | Response |
+| GET route | Response |
 |---|---|
-| `GET /health` | `200 {"status":"ok"}` |
-| `GET /whoami` | `200` with `authMode` (`iam` or `jwt`), `subject` (`null` on `iam`), `envId`, `startedAt`, `requestCount` |
-| `GET /stream` | `200 text/event-stream`: `data: {"tick":n}` events, one per interval, then the response ends |
-| anything else | `404 {"error":"not_found"}` |
+| `/health` | `200 {"status":"ok"}` |
+| `/whoami` | Authentication, process identity, start time, and request count |
+| `/stream` | A finite stream of `data: {"tick":n}` events |
+| Other paths | `404 {"error":"not_found"}` |
 
-In `jwt` mode, every route except `/health` requires `Authorization: Bearer <Cognito access token>`. Missing or invalid tokens return `401 {"error":"unauthorized"}` before routing, including for unknown paths. The deployed IAM endpoint requires signed requests for every path.
+On the deployed IAM endpoint, every request requires a signature. In JWT mode,
+all paths except `/health` require `Authorization: Bearer <access-token>`;
+missing or invalid tokens return 401 before routing, including for unknown paths.
 
-## Prerequisites
+## Check locally
 
-Node 24, AWS CLI v2, SAM CLI 1.170 or newer, and cfn-lint. AWS credentials are required only for deployment, test-user creation, deployment smoke tests, and teardown.
-
-## Local development
-
-```sh
-npm ci
-npm run dev          # iam mode on 127.0.0.1:3000
-npm run dev:public   # jwt mode on 127.0.0.1:3001
-```
-
-Run the servers in separate terminals; stop each with Ctrl+C. Try:
-
-```sh
-curl -i localhost:3000/whoami      # 200, authMode: iam
-curl -N localhost:3000/stream      # ticks arrive one at a time
-curl -i localhost:3001/whoami      # 401, WWW-Authenticate: Bearer
-curl -i localhost:3001/health      # 200
-```
-
-`dev:public` uses placeholder Cognito pool and client IDs, so protected routes reject tokens from your deployed pool. `/health` remains accessible without a token.
-
-## Checks
-
-[GitHub Actions](../../.github/workflows/checks.yml) runs these checks and the bundle test for PRs targeting `main`. To run the checks locally:
+Build and template checks require SAM CLI 1.170+ and cfn-lint. No AWS credentials
+are needed. [CI](../../.github/workflows/checks.yml) runs:
 
 ```sh
 npm run typecheck
 npm run lint
 npm test
-npm run build
+npm run test:bundle   # builds and tests both packaged functions
 cfn-lint template.yaml
 ```
 
-These checks do not call AWS. Use `npm run build` rather than bare `sam build`: it adds the ESM package markers required to run the bundles.
+Use `npm run build` for a build alone. Bare `sam build` omits required ESM package
+markers. Uncached build dependencies may need network access.
 
-`npm run test:bundle` builds and tests both packaged functions. It requires SAM and may need network access for uncached dependencies.
+## Deploy and test on AWS
 
-## Deploy
+Requires AWS CLI v2 and credentials. These commands access AWS:
 
 ```sh
 npm run deploy
-```
-
-Deployment and smoke scripts use `samconfig.toml`; the scripts override inherited
-`AWS_REGION`. See the [shared-stack workflow](../../README.md#working-through-stages)
-before switching stages.
-
-## Test the deployment
-
-```sh
 npm run smoke:iam
 npm run smoke:jwt:user -- you@example.com
 ```
 
-Cognito self-service signup is disabled after deployment. `smoke:jwt:user` uses administrator APIs to create the user or reset its password. To use an existing token, run `npm run smoke:jwt -- "$TOKEN"`.
+Commands use `samconfig.toml`; smoke scripts override inherited `AWS_REGION`.
+Read the [shared-stack workflow](../../README.md#working-through-stages) before switching stages.
 
-## Logs
+`smoke:jwt:user` creates a Cognito user or resets its password. Self-service signup
+is disabled. With an existing token, use `npm run smoke:jwt -- "$TOKEN"`.
 
-Logs go to `/aws/lambda/web/lwf-iam` and `/aws/lambda/web/lwf-public`.
+## Logs and configuration
 
-The app logs startup and unhandled errors, not each request. Log levels are
-configured in `template.yaml`.
+Logs: `/aws/lambda/web/lwf-iam` and `/aws/lambda/web/lwf-public`.
+The app logs startup and unhandled errors, not each request.
 
-## Teardown
+App settings: [src/config.ts](src/config.ts). Deployment settings and log levels:
+[template.yaml](template.yaml). Environment and rate limits apply to each function separately.
+A missing or invalid `AUTH_MODE` stops startup.
+
+## Clean up
 
 ```sh
 npm run teardown
 ```
 
-Runs `sam delete --no-prompts` for the shared stack, including resources deployed
-by a later stage. Use it when finished with the deployment, not to switch stages.
-
-## Configuration and cost
-
-App settings live in [src/config.ts](src/config.ts) and deployment parameters in [template.yaml](template.yaml); `MaxEnvironments` and `RateLimit` apply to each function separately.
+Deletes the shared AWS stack without prompting, including any later stage's resources.

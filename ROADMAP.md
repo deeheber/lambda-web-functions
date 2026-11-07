@@ -1,29 +1,28 @@
-# Lambda Web Functions learning roadmap
+# Learning roadmap
 
-## Suggested order
+Follow this order, from a basic HTTP app to regional distribution:
 
-| Step | Example | What to learn | First milestone |
-|---|---|---|---|
-| 1 | [Hello world](examples/hello-world/README.md) | Request handling, IAM versus JWT authentication, streaming, and environment reuse | Complete the [walkthrough](examples/hello-world/docs/walkthrough.md). |
-| 2 | CloudFront ([#4](https://github.com/deeheber/lambda-web-functions/issues/4)) | Serving a browser-facing app and separating origin access from user authentication | Use the CloudFront hostname with OAC; explore JWT forwarding, then a custom domain. Leave WAF for later. |
-| 3 | Canary deployments ([#1](https://github.com/deeheber/lambda-web-functions/issues/1)) | Revisions, traffic weights, promotion, and rollback | Identify two builds in responses, split traffic, promote one, then roll back. |
-| 4 | VPC access ([#3](https://github.com/deeheber/lambda-web-functions/issues/3)) | Reaching a private backend and managing connections | Call one small private HTTP target before adding a database. |
-| 5 | MultiRegion ([#2](https://github.com/deeheber/lambda-web-functions/issues/2)) | Regional replication, routing, authentication, and observability | Expose the serving Region and compare requests from different locations. |
+| Stage | Learn by doing |
+|---|---|
+| [Hello world](examples/hello-world/README.md) | Complete the [walkthrough](examples/hello-world/docs/walkthrough.md): requests, authentication, reuse, and concurrency. |
+| CloudFront ([#4](https://github.com/deeheber/lambda-web-functions/issues/4)) | Separate origin access from user authentication. Start with OAC, then JWT forwarding and a custom domain. |
+| Canary ([#1](https://github.com/deeheber/lambda-web-functions/issues/1)) | Split traffic between identifiable builds, promote one, then roll back. |
+| VPC ([#3](https://github.com/deeheber/lambda-web-functions/issues/3)) | Reach a private HTTP service before introducing a database. |
+| MultiRegion ([#2](https://github.com/deeheber/lambda-web-functions/issues/2)) | Expose the serving Region and compare regional routing. |
 
-## Adding a learning stage
+## Adding a stage
 
 - Use `examples/cloudfront`, `examples/canary`, `examples/vpc`, or `examples/multiregion`.
-- Include its own code, tests, package files, template, and SAM configuration.
-  Prefer a small amount of duplication over a framework that obscures the lesson.
-- Follow the [shared-stack workflow](README.md#working-through-stages). Preserve
-  resource logical IDs where practical so resources carry forward between stages.
-- Document how to run, what changed from the previous stage, what to observe, and how to
-  clean up. Distinguish local checks from commands that access AWS.
-- Keep hello world small; apply bug fixes and dependency updates without adding
-  experiment-specific features to it.
+- Include runnable code, tests, package files, a template, and SAM configuration.
+- When adding the second stage, extend the existing GitHub Actions checks workflow
+  with a matrix that runs checks from each stage's folder. Keep one workflow.
+- Build on the previous stage using the [same stack](README.md#working-through-stages).
+  Preserve resource logical IDs where practical.
+- Add a README with commands, changes from the previous stage, observations, and cleanup.
+  Label commands that access AWS.
+- Keep earlier stages small and runnable; apply bug fixes and dependency updates.
 
 Issue sketches reference the old `infra/app.yaml` and missing `docs/SPEC.md`.
-Use the current example's template. Before implementing canary deployments, inspect
-SAM's generated revisions and endpoints. Before MultiRegion, check regional
-availability and VPC connector restrictions; document any features that cannot
-carry forward from the VPC stage.
+Use the current stage's template. For canary deployments, inspect SAM's generated
+revisions and endpoints first. Before MultiRegion, check regional availability
+and VPC connector restrictions; document anything that cannot carry forward.

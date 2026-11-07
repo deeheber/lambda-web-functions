@@ -2,9 +2,8 @@
 
 ## Get started
 
-Start with [hello world](examples/hello-world/README.md), a TypeScript Express app
-with IAM and Cognito JWT authentication, environment reuse information, and streaming.
-Local development requires Node 24.
+Start with [hello world](examples/hello-world/README.md), an Express app with IAM
+and Cognito JWT authentication. Local development requires Node 24.
 
 ```sh
 cd examples/hello-world
@@ -12,13 +11,14 @@ npm ci
 npm run dev
 ```
 
-Follow the [walkthrough](examples/hello-world/docs/walkthrough.md) to trace requests
-and compare local behavior with a deployment. The [roadmap](ROADMAP.md) gives the
-learning order and planned stages. Only hello world is implemented.
+- [Walkthrough](examples/hello-world/docs/walkthrough.md): learn by tracing requests and observing behavior.
+- [Roadmap](ROADMAP.md): the five learning stages and what to implement next.
+
+Only hello world is implemented.
 
 ## Working through stages
 
-Each folder preserves a complete runnable stage. Run commands from that folder.
+Each folder preserves a runnable stage. Run commands from that folder.
 All stages target stack `lwf` in `us-west-2`; deploying another stage updates it.
 
 To compare stages, record observations, deploy the other stage, and repeat the

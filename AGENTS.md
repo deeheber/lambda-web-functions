@@ -18,7 +18,7 @@
 
 - Never add an authentication bypass, disabled mode, or fallback for missing or invalid `AUTH_MODE`.
 - Never use `lambda-web-*` headers for authentication or routing, or enable `X-Forwarded-Host` / Express `trust proxy` behavior.
-- Within each stage, keep each tunable's default in `src/config.ts` for app settings or a `template.yaml` parameter for Lambda settings. Do not repeat defaults in scripts or other configuration files.
+- Define each tunable's default once per stage: app settings in `src/config.ts`, Lambda settings in `template.yaml`. Do not repeat defaults in scripts or other configuration files.
 
 ## Bundle pitfalls
 
