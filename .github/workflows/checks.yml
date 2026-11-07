@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        stage: [hello-world, cloudfront]
+        stage: [01-hello-world, 02-cloudfront]
     defaults:
       run:
         working-directory: examples/${{ matrix.stage }}
@@ -72,5 +72,5 @@ jobs:
         run: cfn-lint template.yaml
 
       - name: Lint optional certificate template
-        if: matrix.stage == 'cloudfront'
+        if: matrix.stage == '02-cloudfront'
         run: cfn-lint --regions us-east-1 --template certificate.yaml
