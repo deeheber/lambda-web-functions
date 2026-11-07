@@ -16,6 +16,9 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: examples/hello-world
     env:
       SAM_CLI_TELEMETRY: '0'
       AWS_EC2_METADATA_DISABLED: 'true'
@@ -28,6 +31,7 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: npm
+          cache-dependency-path: examples/hello-world/package-lock.json
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
