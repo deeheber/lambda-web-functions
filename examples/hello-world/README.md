@@ -77,11 +77,12 @@ Read the [shared-stack workflow](../../README.md#working-through-stages) before 
 For manual HTTP calls (zsh or Bash):
 
 ```sh
+source scripts/env.sh
+BASE="$(stack_output "$STACK_NAME" PublicEndpointUrl)"
 TOKEN="$(npm run --silent get-jwt -- you@example.com)"
-curl -sS "https://YOUR_PUBLIC_ENDPOINT/whoami" -H "Authorization: Bearer $TOKEN"
+curl -sS "$BASE/whoami" -H "Authorization: Bearer $TOKEN"
 ```
 
-Replace the URL with the stack's `PublicEndpointUrl` plus `/whoami`.
 Both `get-jwt` and `smoke:jwt` create the test user if needed and reset its
 password before signing in. Self-service signup is disabled. Set `AWS_PROFILE`
 for a named profile.
