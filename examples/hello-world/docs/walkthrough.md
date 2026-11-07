@@ -1,5 +1,8 @@
 # Hello-world walkthrough
 
+> Run all commands from `examples/hello-world`, including in each new terminal.
+> From the repository root, run `cd examples/hello-world` first.
+
 Follow the [README](../README.md) to install dependencies and start local IAM mode.
 Run the requests below in another terminal.
 
@@ -72,12 +75,12 @@ curl -s localhost:3000/whoami
 
 Restart the server and compare `/whoami`. `envId` identifies the process, not an AWS revision.
 
-On AWS, print `/whoami` using the JWT endpoint (Bash, from `examples/hello-world`):
+To call the JWT endpoint on AWS (zsh or Bash):
 
-```bash
+```sh
 source scripts/env.sh
 BASE="$(stack_output "$STACK_NAME" PublicEndpointUrl)"
-TOKEN="$(npm run --silent create-test-user -- you@example.com)"
+TOKEN="$(npm run --silent get-jwt -- you@example.com)"
 curl -sS "$BASE/whoami" -H "Authorization: Bearer $TOKEN"
 ```
 

@@ -10,7 +10,7 @@
 
 ## Working boundaries
 
-- Do not run `deploy`, `teardown`, `create-test-user`, `smoke:iam`, `smoke:jwt`, or `smoke:jwt:user` unless explicitly requested; they access AWS.
+- Do not run `deploy`, `teardown`, `get-jwt`, `smoke:iam`, `smoke:jwt`, or the internal `check-jwt.sh` unless explicitly requested; they access AWS.
 - Stop any local dev servers you start before finishing.
 - Tests must not call AWS services. Use fakes or injected JWKS for authentication tests.
 

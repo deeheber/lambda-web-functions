@@ -68,14 +68,24 @@ a valid signature without permission still returns 403.
 ```sh
 npm run deploy
 npm run smoke:iam
-npm run smoke:jwt:user -- you@example.com
+npm run smoke:jwt -- you@example.com
 ```
 
 Commands use `samconfig.toml`; smoke scripts override inherited `AWS_REGION`.
 Read the [shared-stack workflow](../../README.md#working-through-stages) before switching stages.
 
-`smoke:jwt:user` creates a Cognito user or resets its password. Self-service signup
-is disabled. With an existing token, use `npm run smoke:jwt -- "$TOKEN"`.
+For manual HTTP calls (zsh or Bash):
+
+```sh
+source scripts/env.sh
+BASE="$(stack_output "$STACK_NAME" PublicEndpointUrl)"
+TOKEN="$(npm run --silent get-jwt -- you@example.com)"
+curl -sS "$BASE/whoami" -H "Authorization: Bearer $TOKEN"
+```
+
+Both `get-jwt` and `smoke:jwt` create the test user if needed and reset its
+password before signing in. Self-service signup is disabled. Set `AWS_PROFILE`
+for a named profile.
 
 ## Logs and configuration
 
@@ -95,7 +105,7 @@ npm run teardown
 Deletes the shared AWS stack without prompting, including any later stage's resources.
 
 CloudWatch log groups remain, with no expiry by default. If you no longer need
-the logs, delete both functions' groups and their `.local` companions (Bash):
+the logs, delete both functions' groups and their `.local` companions:
 
 ```bash
 source scripts/env.sh

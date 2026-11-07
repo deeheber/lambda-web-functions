@@ -22,7 +22,7 @@ Parameters:
     Type: Number
     Default: 100
     AllowedValues: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
-    Description: ASSUMPTION - requests per second per endpoint.
+    Description: Maximum requests per second per endpoint in each Region.
   ApplicationLogLevel:
     Type: String
     Default: INFO

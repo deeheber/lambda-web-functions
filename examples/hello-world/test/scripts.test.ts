@@ -18,14 +18,86 @@ describe('scripts', () => {
   });
 
   it.each([
-    ['create-test-user.sh', 'bash'],
+    ['get-jwt.sh', 'bash'],
     ['smoke-jwt.sh', 'bash'],
+    ['check-jwt.sh', 'bash'],
     ['smoke-iam.ts', process.execPath],
   ])('%s prints usage and exits 2 without arguments', (file, command) => {
     const r = spawnSync(command, [join(root, 'scripts', file)], { env: {}, encoding: 'utf8' });
     expect(r.status, r.stderr).toBe(2);
     expect(r.stderr).toContain('usage');
     expect(r.stdout).toBe('');
+  });
+});
+
+describe('JWT commands with a fake AWS CLI', () => {
+  let fixture: string;
+
+  beforeEach(() => {
+    fixture = mkdtempSync(join(tmpdir(), 'lwf-jwt-'));
+    mkdirSync(join(fixture, 'scripts'));
+    for (const file of ['env.sh', 'get-jwt.sh', 'smoke-jwt.sh']) {
+      copyFileSync(join(root, 'scripts', file), join(fixture, 'scripts', file));
+    }
+    copyFileSync(join(root, 'samconfig.toml'), join(fixture, 'samconfig.toml'));
+    writeFileSync(join(fixture, 'aws'), `#!${process.execPath}
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+const operation = args[1];
+fs.appendFileSync(process.env.CALL_LOG, JSON.stringify(args) + '\\n');
+if (operation === 'describe-stacks') console.log(args.join(' ').includes('UserPoolClientId') ? 'fixture-client' : 'fixture-pool');
+else if (operation === 'admin-create-user' && process.env.SCENARIO !== 'new') {
+  console.error('An error occurred (' + (process.env.SCENARIO === 'denied' ? 'AccessDeniedException' : 'UsernameExistsException') + ')');
+  process.exit(1);
+} else if (operation === 'initiate-auth') {
+  if (process.env.SCENARIO === 'auth-failed') { console.error('NotAuthorizedException'); process.exit(1); }
+  console.log(process.env.SCENARIO === 'challenge' ? 'None' : 'fake.jwt.token');
+}
+`, { mode: 0o700 });
+    writeFileSync(join(fixture, 'scripts/check-jwt.sh'), 'printf "checked:%s\\n" "$1"\n');
+  });
+
+  afterEach(() => rmSync(fixture, { recursive: true, force: true }));
+
+  function run(script: string, scenario: string) {
+    return spawnSync('bash', [join(fixture, 'scripts', script), 'user@example.com'], {
+      cwd: tmpdir(), encoding: 'utf8',
+      env: { ...process.env, PATH: `${fixture}:${process.env.PATH}`, CALL_LOG: join(fixture, 'calls'), SCENARIO: scenario, TEST_USER_PASSWORD: 'Fixture1!password' },
+    });
+  }
+
+  it.each(['new', 'existing'])('returns only a JWT for a %s user', (scenario) => {
+    const r = run('get-jwt.sh', scenario);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toBe('fake.jwt.token\n');
+    const calls: string[][] = readFileSync(join(fixture, 'calls'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    const create = calls.find((args) => args[1] === 'admin-create-user');
+    const reset = calls.find((args) => args[1] === 'admin-set-user-password');
+    const auth = calls.find((args) => args[1] === 'initiate-auth');
+    expect(create).toEqual(expect.arrayContaining(['--user-pool-id', 'fixture-pool', '--username', 'user@example.com']));
+    expect(reset).toEqual(expect.arrayContaining(['--user-pool-id', 'fixture-pool', '--username', 'user@example.com', '--password', 'Fixture1!password', '--permanent']));
+    expect(auth).toEqual(expect.arrayContaining(['--client-id', 'fixture-client', '--auth-flow', 'USER_PASSWORD_AUTH', '--auth-parameters', 'USERNAME=user@example.com,PASSWORD=Fixture1!password', '--query', 'AuthenticationResult.AccessToken']));
+  });
+
+  it('stops before resetting a password when creation fails for another reason', () => {
+    const r = run('get-jwt.sh', 'denied');
+    expect(r.status).not.toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toContain('AccessDeniedException');
+    expect(readFileSync(join(fixture, 'calls'), 'utf8')).not.toContain('admin-set-user-password');
+  });
+
+  it('passes the token to the HTTP checker', () => {
+    const r = run('smoke-jwt.sh', 'existing');
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toBe('checked:fake.jwt.token\n');
+  });
+
+  it.each(['auth-failed', 'challenge'])('does not run HTTP checks when sign-in returns %s', (scenario) => {
+    const r = run('smoke-jwt.sh', scenario);
+    expect(r.status).not.toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toContain(scenario === 'auth-failed' ? 'NotAuthorizedException' : 'Sign-in did not return an access token');
   });
 });
 
@@ -66,7 +138,7 @@ describe('ESM build finalization', () => {
   });
 });
 
-describe('env.sh', () => {
+describe.each(['bash', 'zsh'])('env.sh sourced in %s', (shell) => {
   let fixture: string;
 
   beforeEach(() => {
@@ -89,9 +161,9 @@ region = "us-east-2"
 stack_name = "wrong-stack"
 region = "ap-southeast-2"
 `);
-    const r = spawnSync('bash', [
+    const r = spawnSync(shell, [
       '-c', 'source "$1" && printf "%s\\n" "$STACK_NAME" && printenv AWS_REGION',
-      'bash', join(fixture, 'scripts', 'env.sh'),
+      shell, join(fixture, 'scripts', 'env.sh'),
     ], {
       cwd: root,
       env: { ...process.env, STACK_NAME: 'caller-stack', AWS_REGION: 'eu-west-1' },
@@ -102,7 +174,7 @@ region = "ap-southeast-2"
   });
 
   it('fails clearly when its configuration file is missing', () => {
-    const r = spawnSync('bash', ['-c', 'source "$1"', 'bash', join(fixture, 'scripts', 'env.sh')], {
+    const r = spawnSync(shell, ['-c', 'source "$1"', shell, join(fixture, 'scripts', 'env.sh')], {
       cwd: root,
       encoding: 'utf8',
     });

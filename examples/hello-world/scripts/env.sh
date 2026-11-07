@@ -1,6 +1,12 @@
-# Sourced by create-test-user.sh, smoke-jwt.sh and the smoke:iam npm script. Not run directly.
+# Sourced by get-jwt.sh, check-jwt.sh and the smoke:iam npm script. Not run directly.
 # STACK_NAME and AWS_REGION come from samconfig.toml so the scripts target what `sam deploy` used.
-_samconfig="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/samconfig.toml"
+if [ -n "${ZSH_VERSION:-}" ]; then
+  _env_source="${(%):-%x}"
+else
+  _env_source="${BASH_SOURCE[0]}"
+fi
+_samconfig="$(cd "$(dirname "$_env_source")/.." && pwd)/samconfig.toml"
+unset _env_source
 
 # _samconfig_value <key>: first `key = "value"` line under [default.global.parameters]
 _samconfig_value() {
