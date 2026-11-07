@@ -16,9 +16,13 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        stage: [hello-world, cloudfront]
     defaults:
       run:
-        working-directory: examples/hello-world
+        working-directory: examples/${{ matrix.stage }}
     env:
       SAM_CLI_TELEMETRY: '0'
       AWS_EC2_METADATA_DISABLED: 'true'
@@ -31,7 +35,7 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: npm
-          cache-dependency-path: examples/hello-world/package-lock.json
+          cache-dependency-path: examples/${{ matrix.stage }}/package-lock.json
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -66,3 +70,7 @@ jobs:
 
       - name: Lint CloudFormation template
         run: cfn-lint template.yaml
+
+      - name: Lint optional certificate template
+        if: matrix.stage == 'cloudfront'
+        run: cfn-lint --regions us-east-1 --template certificate.yaml

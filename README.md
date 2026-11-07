@@ -14,7 +14,8 @@ npm run dev
 - [Walkthrough](examples/hello-world/docs/walkthrough.md): learn by tracing requests and observing behavior.
 - [Roadmap](ROADMAP.md): the five learning stages and what to implement next.
 
-Only hello world is implemented.
+Continue with [CloudFront](examples/cloudfront/README.md) to separate origin access
+from user authentication, then add an optional custom domain.
 
 ## Working through stages
 
@@ -23,4 +24,9 @@ All stages target stack `lwf` in `us-west-2`; deploying another stage updates it
 
 To compare stages, record observations, deploy the other stage, and repeat the
 checks. Switching stages may remove or replace resources. Teardown from any
-stage deletes the shared stack.
+stage deletes the shared application stack.
+
+The optional CloudFront certificate uses a separate stack in `us-east-1`.
+Application teardown does not delete it. Follow the
+[CloudFront cleanup order](examples/cloudfront/README.md#clean-up-or-return-to-the-default-hostname)
+before deleting the certificate stack.
