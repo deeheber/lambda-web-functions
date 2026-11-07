@@ -17,7 +17,7 @@ Express checks the user's JWT, then runs the route
 `/health` needs no JWT. Every other path requires a Cognito access token; missing
 or invalid tokens return 401 before routing.
 
-Run all commands from `examples/cloudfront`, including in each new terminal.
+Run all commands from `examples/02-cloudfront`, including in each new terminal.
 Deploying this stage updates hello world's `lwf` stack in `us-west-2` and removes
 its public function. See [changes from hello world](#changes-from-hello-world)
 before deploying.

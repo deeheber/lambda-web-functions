@@ -8,14 +8,14 @@ An Express 5 app deployed with SAM as two Web Functions running the same code:
 | `lwf-public` | The app verifies a Cognito access token. `/health` needs no token. |
 
 Use the [walkthrough](docs/walkthrough.md) for exercises. This README is the command reference.
-Run commands from `examples/hello-world`.
+Run commands from `examples/01-hello-world`.
 
 ## Run locally
 
 Requires Node 24. From the repository root:
 
 ```sh
-cd examples/hello-world
+cd examples/01-hello-world
 npm ci
 npm run dev          # IAM mode on localhost:3000
 ```

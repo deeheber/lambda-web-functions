@@ -1,7 +1,7 @@
 # Hello-world walkthrough
 
-> Run all commands from `examples/hello-world`, including in each new terminal.
-> From the repository root, run `cd examples/hello-world` first.
+> Run all commands from `examples/01-hello-world`, including in each new terminal.
+> From the repository root, run `cd examples/01-hello-world` first.
 
 Follow the [README](../README.md) to install dependencies and start local IAM mode.
 Run the requests below in another terminal.

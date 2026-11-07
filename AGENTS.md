@@ -2,7 +2,7 @@
 
 ## Repository layout
 
-- Run npm and SAM commands from the stage's folder; the baseline is `examples/hello-world`.
+- Run npm and SAM commands from the stage's folder; the baseline is `examples/01-hello-world`.
 - Preserve complete runnable stages in separate folders. Keep hello world small.
 - All stages update the same application stack and Region configured in hello world's `samconfig.toml`.
   The optional CloudFront certificate is a separate stack in `us-east-1`; remove
