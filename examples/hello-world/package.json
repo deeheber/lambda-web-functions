@@ -26,18 +26,22 @@
   },
   "devDependencies": {
     "@aws-crypto/sha256-js": "^5.2.0",
-    "@aws-sdk/credential-provider-node": "^3.972.92",
-    "@eslint/js": "^9.39.5",
+    "@aws-sdk/credential-provider-node": "^3.972.94",
+    "@eslint/js": "^10.0.1",
     "@smithy/signature-v4": "^5.7.5",
     "@types/express": "^5.0.6",
     "@types/node": "^24.19.2",
     "@types/supertest": "^7.2.1",
     "esbuild": "^0.28.2",
-    "eslint": "^9.39.5",
+    "eslint": "^10.14.0",
     "supertest": "^7.3.1",
-    "typescript": "^5.9.3",
+    "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1",
-    "vitest": "^5.0.5",
+    "vitest": "^5.1.0",
     "yaml": "^2.9.1"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true
   }
 }
