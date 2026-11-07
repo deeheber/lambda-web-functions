@@ -60,7 +60,10 @@ markers. Uncached build dependencies may need network access.
 
 ## Deploy and test on AWS
 
-Requires AWS CLI v2 and credentials. These commands access AWS:
+Requires AWS CLI v2 and credentials. The commands below access AWS.
+
+The IAM smoke test also needs [`lambda:InvokeWebFunctionEndpoint` permission](https://docs.aws.amazon.com/lambda/latest/dg/web-functions-endpoint-access-control.html);
+a valid signature without permission still returns 403.
 
 ```sh
 npm run deploy
@@ -90,3 +93,16 @@ npm run teardown
 ```
 
 Deletes the shared AWS stack without prompting, including any later stage's resources.
+
+CloudWatch log groups remain, with no expiry by default. If you no longer need
+the logs, delete both functions' groups and their `.local` companions (Bash):
+
+```bash
+source scripts/env.sh
+for name in iam public; do
+  for suffix in '' .local; do
+    aws logs delete-log-group --region "$AWS_REGION" \
+      --log-group-name "/aws/lambda/web/${STACK_NAME}-${name}${suffix}"
+  done
+done
+```

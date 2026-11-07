@@ -52,22 +52,37 @@ See the [access-control guide](https://docs.aws.amazon.com/lambda/latest/dg/web-
 
 ## 4. Observe reuse and concurrency
 
-Call `/whoami` repeatedly, then overlap two streams with another request:
+Call `/whoami` repeatedly. Then restart the IAM server with
+`STREAM_TICKS=60 npm run dev` to keep streams open longer. Run this in two
+other terminals:
 
 ```sh
-curl -N localhost:3000/stream &
-curl -N localhost:3000/stream &
+curl -N localhost:3000/stream
+```
+
+Once both show ticks, request identity from another terminal:
+
+```sh
 curl -s localhost:3000/whoami
-wait
 ```
 
 - The server responds while streams are open.
 - `envId` and `startedAt` stay fixed until the process restarts.
-- `requestCount` includes health checks and requests rejected by app authentication.
+- `requestCount` includes every request reaching this process, including health checks and 404s.
 
 Restart the server and compare `/whoami`. `envId` identifies the process, not an AWS revision.
 
-On AWS, repeat with authenticated requests and group results by `envId`.
+On AWS, print `/whoami` using the JWT endpoint (Bash, from `examples/hello-world`):
+
+```bash
+source scripts/env.sh
+BASE="$(stack_output "$STACK_NAME" PublicEndpointUrl)"
+TOKEN="$(npm run --silent create-test-user -- you@example.com)"
+curl -sS "$BASE/whoami" -H "Authorization: Bearer $TOKEN"
+```
+
+This creates a test user or resets its password. Repeat the `curl` command and
+group results by `envId`.
 Environments have independent counters; a small test may reach only one.
 Local runs demonstrate concurrency, not AWS scaling.
 
