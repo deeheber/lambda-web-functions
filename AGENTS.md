@@ -1,5 +1,13 @@
 # Agent instructions
 
+## Repository layout
+
+- Run npm and SAM commands from the stage's folder; the baseline is `examples/hello-world`.
+- Preserve complete runnable stages in separate folders. Keep hello world small.
+- All stages update the same stack and Region configured in hello world's `samconfig.toml`.
+- Preserve resource logical IDs where practical; document resource removals and replacements.
+- Follow `ROADMAP.md` for the learning order and stage requirements.
+
 ## Working boundaries
 
 - Do not run `deploy`, `teardown`, `create-test-user`, `smoke:iam`, `smoke:jwt`, or `smoke:jwt:user` unless explicitly requested; they access AWS.
@@ -10,7 +18,7 @@
 
 - Never add an authentication bypass, disabled mode, or fallback for missing or invalid `AUTH_MODE`.
 - Never use `lambda-web-*` headers for authentication or routing, or enable `X-Forwarded-Host` / Express `trust proxy` behavior.
-- Keep each tunable's default in one place: `src/config.ts` for app settings or a `template.yaml` parameter for Lambda settings. Do not repeat defaults in scripts or other configuration files.
+- Define each tunable's default once per stage: app settings in `src/config.ts`, Lambda settings in `template.yaml`. Do not repeat defaults in scripts or other configuration files.
 
 ## Bundle pitfalls
 
