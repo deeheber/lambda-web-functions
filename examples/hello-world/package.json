@@ -15,9 +15,8 @@
     "build": "sam build && node scripts/finalize-esm-build.ts",
     "deploy": "npm run build && sam deploy",
     "teardown": "sam delete --no-prompts",
-    "create-test-user": "bash scripts/create-test-user.sh",
+    "get-jwt": "bash scripts/get-jwt.sh",
     "smoke:jwt": "bash scripts/smoke-jwt.sh",
-    "smoke:jwt:user": "bash scripts/smoke-jwt-user.sh",
     "smoke:iam": "bash -c 'source scripts/env.sh && node scripts/smoke-iam.ts \"$(stack_output \"$STACK_NAME\" IamEndpointUrl)\" \"$AWS_REGION\"'"
   },
   "dependencies": {

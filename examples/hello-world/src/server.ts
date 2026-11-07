@@ -4,7 +4,6 @@ import { createJwtVerifier } from "./auth/jwt-verifier.ts";
 import { loadConfig } from "./config.ts";
 import { envId } from "./env-info.ts";
 
-// Half of the platform's 1 s SIGTERM limit; not a section 5 tunable.
 const SHUTDOWN_DEADLINE_MS = 500;
 
 const config = loadConfig();
