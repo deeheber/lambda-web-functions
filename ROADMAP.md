@@ -12,10 +12,9 @@ Follow this order, from a basic HTTP app to regional distribution:
 
 ## Adding a stage
 
-- Use `examples/02-cloudfront`, `examples/03-canary`, `examples/04-vpc`, or `examples/05-multiregion`.
+- Use `examples/03-canary`, `examples/04-vpc`, or `examples/05-multiregion`.
 - Include runnable code, tests, package files, a template, and SAM configuration.
-- When adding the second stage, extend the existing GitHub Actions checks workflow
-  with a matrix that runs checks from each stage's folder. Keep one workflow.
+- Add the stage's folder name to `matrix.stage` in `.github/workflows/checks.yml`.
 - Build on the previous stage using the [same stack](README.md#working-through-stages).
   Preserve resource logical IDs where practical.
 - Add a README with commands, changes from the previous stage, observations, and cleanup.

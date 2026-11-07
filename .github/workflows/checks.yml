@@ -72,5 +72,5 @@ jobs:
         run: cfn-lint template.yaml
 
       - name: Lint optional certificate template
-        if: matrix.stage == '02-cloudfront'
+        if: hashFiles(format('examples/{0}/certificate.yaml', matrix.stage)) != ''
         run: cfn-lint --regions us-east-1 --template certificate.yaml
