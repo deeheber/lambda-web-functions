@@ -1,0 +1,248 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Lambda Web Function with CloudFront OAC, Cognito JWTs, and an optional custom domain.
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: ""
+    Description: Optional custom hostname covered by the certificate, without a scheme or trailing dot.
+  CertificateArn:
+    Type: String
+    Default: ""
+    AllowedPattern: '^(arn:aws:acm:us-east-1:[0-9]{12}:certificate/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$'
+    ConstraintDescription: Supply an ACM certificate ARN in us-east-1, or leave empty.
+  HostedZoneId:
+    Type: String
+    Default: ""
+    Description: Existing public Route 53 zone containing DomainName, in this account.
+  TimeoutSeconds:
+    Type: Number
+    Default: 30
+    MinValue: 3
+    MaxValue: 900
+  MaxConcurrencyPerEnvironment:
+    Type: Number
+    Default: 64
+    MinValue: 1
+    MaxValue: 128
+  MaxEnvironments:
+    Type: Number
+    Default: 2
+    MinValue: 2
+    Description: ASSUMPTION - cost cap, maximum execution environments per function.
+  RateLimit:
+    Type: Number
+    Default: 100
+    AllowedValues: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+    Description: Maximum requests per second per endpoint in each Region.
+  ApplicationLogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [TRACE, DEBUG, INFO, WARN, ERROR, FATAL]
+  SystemLogLevel:
+    Type: String
+    Default: WARN
+    AllowedValues: [DEBUG, INFO, WARN]
+
+Rules:
+  CustomDomainParameters:
+    Assertions:
+      - Assert:
+          Fn::Or:
+            - Fn::And:
+                - Fn::Equals: [!Ref DomainName, ""]
+                - Fn::Equals: [!Ref CertificateArn, ""]
+                - Fn::Equals: [!Ref HostedZoneId, ""]
+            - Fn::And:
+                - Fn::Not: [{Fn::Equals: [!Ref DomainName, ""]}]
+                - Fn::Not: [{Fn::Equals: [!Ref CertificateArn, ""]}]
+                - Fn::Not: [{Fn::Equals: [!Ref HostedZoneId, ""]}]
+        AssertDescription: Supply DomainName, CertificateArn, and HostedZoneId together, or leave all empty.
+
+Conditions:
+  HasCustomDomain: !And
+    - !Not [!Equals [!Ref DomainName, ""]]
+    - !Not [!Equals [!Ref CertificateArn, ""]]
+    - !Not [!Equals [!Ref HostedZoneId, ""]]
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  IamFunction:
+    Type: AWS::Serverless::WebFunction
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        Banner:
+          - 'js=import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
+        Target: node24
+        EntryPoints:
+          - src/server.ts
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-iam
+      Runtime: nodejs24.x
+      CodeUri: ./
+      EntryPoint: src/server.ts
+      EndpointName: iam
+      EndpointDescription: CloudFront signs origin requests; the app verifies Cognito JWTs.
+      EndpointType: HomeRegion
+      AuthType: IamAuth
+      Timeout: !Ref TimeoutSeconds
+      MaxConcurrencyPerEnvironment: !Ref MaxConcurrencyPerEnvironment
+      LoggingConfig:
+        ApplicationLogLevel: !Ref ApplicationLogLevel
+        SystemLogLevel: !Ref SystemLogLevel
+      ScalingConfig:
+        MaxEnvironments: !Ref MaxEnvironments
+      ThrottleConfig:
+        RateLimit: !Ref RateLimit
+      EnvironmentVariables:
+        AUTH_MODE: jwt
+        COGNITO_USER_POOL_ID: !Ref UserPool
+        COGNITO_CLIENT_ID: !Ref UserPoolClient
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub ${AWS::StackName}-web
+        OriginAccessControlOriginType: lambda
+        SigningProtocol: sigv4
+        SigningBehavior: always-amz-auth
+
+  JwtCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub ${AWS::StackName}-jwt
+        # A positive MaxTTL avoids zero-TTL header restrictions; the app sends no-store.
+        MinTTL: 0
+        DefaultTTL: 0
+        MaxTTL: 1
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: false
+          EnableAcceptEncodingBrotli: false
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers: [Authorization]
+          CookiesConfig:
+            CookieBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        IPV6Enabled: true
+        HttpVersion: http2
+        Aliases: !If [HasCustomDomain, [!Ref DomainName], !Ref AWS::NoValue]
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
+        Origins:
+          - Id: WebFunction
+            DomainName: !GetAtt IamFunctionEndpoint.DomainName
+            OriginAccessControlId: !Ref OriginAccessControl
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+        DefaultCacheBehavior:
+          TargetOriginId: WebFunction
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: !Ref JwtCachePolicy
+          # Managed AllViewerExceptHostHeader: Lambda expects its own origin hostname.
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 414
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 500
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 501
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 502
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 503
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 504
+            ErrorCachingMinTTL: 0
+
+  CloudFrontInvokePolicy:
+    Type: AWS::Lambda::ResourcePolicy
+    Properties:
+      ResourceArn: !GetAtt IamFunctionEndpoint.FunctionArn
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowDistribution
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: lambda:InvokeWebFunctionEndpoint
+            Resource: !GetAtt IamFunctionEndpoint.EndpointArn
+            Condition:
+              StringEquals:
+                aws:SourceArn: !Sub arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}
+
+  DomainRecords:
+    Type: AWS::Route53::RecordSetGroup
+    Condition: HasCustomDomain
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      RecordSets:
+        - Name: !Ref DomainName
+          Type: A
+          AliasTarget:
+            DNSName: !GetAtt Distribution.DomainName
+            HostedZoneId: Z2FDTNDATAQYW2
+            EvaluateTargetHealth: false
+        - Name: !Ref DomainName
+          Type: AAAA
+          AliasTarget:
+            DNSName: !GetAtt Distribution.DomainName
+            HostedZoneId: Z2FDTNDATAQYW2
+            EvaluateTargetHealth: false
+
+Outputs:
+  IamEndpointUrl:
+    Value: !Sub "https://${IamFunctionEndpoint.DomainName}"
+  IamFunctionName:
+    Value: !Sub ${AWS::StackName}-iam
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Value: !Ref UserPoolClient
+  CloudFrontEndpointUrl:
+    Value: !Sub "https://${Distribution.DomainName}"
+  DistributionId:
+    Value: !Ref Distribution
+  CustomDomainUrl:
+    Condition: HasCustomDomain
+    Value: !Sub "https://${DomainName}"

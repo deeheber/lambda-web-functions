@@ -5,7 +5,7 @@ Follow this order, from a basic HTTP app to regional distribution:
 | Stage | Learn by doing |
 |---|---|
 | [Hello world](examples/hello-world/README.md) | Complete the [walkthrough](examples/hello-world/docs/walkthrough.md): requests, authentication, reuse, and concurrency. |
-| CloudFront ([#4](https://github.com/deeheber/lambda-web-functions/issues/4)) | Separate origin access from user authentication. Start with OAC, then JWT forwarding and a custom domain. |
+| [CloudFront](examples/cloudfront/README.md) ([#4](https://github.com/deeheber/lambda-web-functions/issues/4)) | Separate origin access from user authentication. Start with OAC, then JWT forwarding and a custom domain. |
 | Canary ([#1](https://github.com/deeheber/lambda-web-functions/issues/1)) | Split traffic between identifiable builds, promote one, then roll back. |
 | VPC ([#3](https://github.com/deeheber/lambda-web-functions/issues/3)) | Reach a private HTTP service before introducing a database. |
 | MultiRegion ([#2](https://github.com/deeheber/lambda-web-functions/issues/2)) | Expose the serving Region and compare regional routing. |

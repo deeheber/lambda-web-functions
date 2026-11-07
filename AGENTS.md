@@ -4,7 +4,10 @@
 
 - Run npm and SAM commands from the stage's folder; the baseline is `examples/hello-world`.
 - Preserve complete runnable stages in separate folders. Keep hello world small.
-- All stages update the same stack and Region configured in hello world's `samconfig.toml`.
+- All stages update the same application stack and Region configured in hello world's `samconfig.toml`.
+  The optional CloudFront certificate is a separate stack in `us-east-1`; remove
+  its CloudFront association before deleting that stack. Application teardown does
+  not delete the certificate stack.
 - Preserve resource logical IDs where practical; document resource removals and replacements.
 - Follow `ROADMAP.md` for the learning order and stage requirements.
 
