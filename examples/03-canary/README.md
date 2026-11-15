@@ -24,7 +24,7 @@ do not change the service's separate automatic-deployment mode.
 
 ## Check locally
 
-Requires Node 24, SAM CLI 1.170+, and cfn-lint. Scripts use Bash; tests also require zsh.
+Requires Node 24.2+, SAM CLI 1.170+, and cfn-lint. Scripts use Bash; tests also require zsh.
 Tests do not call AWS; dependency installation may need network.
 
 ```sh
@@ -57,11 +57,11 @@ AWS CLI v2 with `lambda-web` support and credentials; set `AWS_PROFILE` if neede
 Start with the checked-in `BUILD_ID = "baseline-v1"` and `AutoDeploymentMode: LatestRevision`.
 
 ```sh
-npm run deploy -- --confirm-changeset
-source scripts/env.sh
-FUNCTION_NAME="$(stack_output "$STACK_NAME" IamFunctionName)"
-BASE="$(stack_output "$STACK_NAME" CloudFrontEndpointUrl)"
-BASELINE_REV="$(stack_output "$STACK_NAME" CurrentRevisionId)"
+npm run deploy -- --confirm-changeset &&
+source scripts/env.sh &&
+FUNCTION_NAME="$(stack_output "$STACK_NAME" IamFunctionName)" &&
+BASE="$(stack_output "$STACK_NAME" CloudFrontEndpointUrl)" &&
+BASELINE_REV="$(stack_output "$STACK_NAME" CurrentRevisionId)" &&
 printf 'Baseline revision: %s\n' "$BASELINE_REV"
 ```
 
@@ -88,8 +88,8 @@ or `aws lambda-web deploy` can enable service mode `LatestRevision`, which would
 send traffic to a new candidate immediately. Do not use either during this exercise.
 
 ```sh
-# Optional: replace BASE with your existing custom hostname.
-# BASE='https://test.heberlingindustries.com'
+# Optional: use this only if you configured a custom domain.
+# BASE="$(stack_output "$STACK_NAME" CustomDomainUrl)"
 curl -i "$BASE/health"
 TOKEN="$(npm run --silent get-jwt -- you@example.com)" # Replace with your test user's email.
 export TOKEN
@@ -113,7 +113,7 @@ ID as the YAML key; shell variables and parameter references do not work here.
 ```
 
 ```sh
-npm run deploy -- --confirm-changeset
+npm run deploy -- --confirm-changeset &&
 check_endpoint
 ```
 
@@ -139,19 +139,24 @@ export const BUILD_ID = "candidate-v2";
 Keep the baseline-only weights from step 2, then deploy:
 
 ```sh
-npm run deploy -- --confirm-changeset
-CANDIDATE_REV="$(stack_output "$STACK_NAME" CurrentRevisionId)"
-printf 'Candidate revision: %s\n' "$CANDIDATE_REV"
-check_endpoint
+npm run deploy -- --confirm-changeset &&
+CANDIDATE_REV="$(stack_output "$STACK_NAME" CurrentRevisionId)" &&
+printf 'Candidate revision: %s\n' "$CANDIDATE_REV" &&
+check_endpoint &&
 aws lambda-web get-web-function-revision \
-  --function-name "$FUNCTION_NAME" --revision-id "$BASELINE_REV" --query state
+  --function-name "$FUNCTION_NAME" --revision-id "$BASELINE_REV" --query state &&
 aws lambda-web get-web-function-revision \
   --function-name "$FUNCTION_NAME" --revision-id "$CANDIDATE_REV" --query state
-npm run sample -- "$BASE" 100
 ```
 
 Expect a new candidate ID, both revisions `Active`, and baseline still receiving
-100%. Record the candidate ID.
+100% with status `Successful`. Record the candidate ID, then sample:
+
+```sh
+npm run sample -- "$BASE" 100
+```
+
+Expect only `baseline-v1` responses.
 
 Through rollback, change only the weights. Code, dependency, timeout, logging, or
 environment changes can replace the revision. Unchanged builds reuse SAM's artifact;
@@ -168,12 +173,16 @@ Replace only the `RevisionWeights` map in `template.yaml`:
 ```
 
 ```sh
-npm run deploy -- --confirm-changeset
+npm run deploy -- --confirm-changeset &&
 check_endpoint
+```
+
+Confirm the baseline is at 90, the candidate at 10, and status is `Successful`, then sample:
+
+```sh
 npm run sample -- "$BASE" 100
 ```
 
-Before sampling, check both revision IDs, their weights, and status `Successful`.
 Expect mostly `baseline-v1` responses with some `candidate-v2`. Small samples can
 miss the candidate or differ from 90/10; repeat or increase the count.
 
@@ -200,12 +209,17 @@ Replace the map with a single candidate entry; keep `AutoDeploymentMode: Disable
 ```
 
 ```sh
-npm run deploy -- --confirm-changeset
+npm run deploy -- --confirm-changeset &&
 check_endpoint
+```
+
+Confirm the candidate is at 100 and status is `Successful`, then sample:
+
+```sh
 npm run sample -- "$BASE" 100
 ```
 
-Expect candidate 100 in the endpoint and `candidate-v2` in every successful sample.
+Expect `candidate-v2` in every successful sample.
 Remove the baseline entry rather than setting its weight to zero. Weights must be
 1–100 and total 100; SAM's transform rejects zero even if cfn-lint accepts it.
 
@@ -219,12 +233,17 @@ Keep the candidate source and replace only the map:
 ```
 
 ```sh
-npm run deploy -- --confirm-changeset
+npm run deploy -- --confirm-changeset &&
 check_endpoint
+```
+
+Confirm the original baseline ID is at 100 and status is `Successful`, then sample:
+
+```sh
 npm run sample -- "$BASE" 100
 ```
 
-Expect the original baseline ID at 100 and only `baseline-v1` responses.
+Expect only `baseline-v1` responses.
 `CurrentRevisionId` still identifies the candidate; rollback changes only routing.
 
 Complete this exercise before creating further revisions. Replaced revisions leave

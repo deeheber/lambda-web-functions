@@ -1,8 +1,9 @@
 import { SAMPLE_TIMEOUT_MS } from '../src/config.ts';
 
+const usage = 'usage: TOKEN=<access-token> npm run sample -- <base-url> <positive-count>';
+
 export async function sample(args: string[], token: string | undefined, fetcher: typeof fetch = fetch) {
   const [base, countText] = args;
-  const usage = 'usage: TOKEN=<access-token> npm run sample -- <base-url> <positive-count>';
   let url: URL;
   try {
     url = new URL(base!);
@@ -69,7 +70,7 @@ if (import.meta.main) {
     console.log(JSON.stringify(result, null, 2));
     process.exitCode = result.successful === result.requested ? 0 : 1;
   } catch {
-    console.error('usage: TOKEN=<access-token> npm run sample -- <base-url> <positive-count>');
+    console.error(usage);
     process.exitCode = 2;
   }
 }
