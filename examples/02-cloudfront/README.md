@@ -58,8 +58,8 @@ Stop the dev server with Ctrl+C.
 
 ## Check locally
 
-Build and template checks require SAM CLI 1.170+ and cfn-lint. These checks do not
-call AWS; tests inject verifiers or signing keys for valid JWTs. Uncached
+Requires Node 24, SAM CLI 1.170+, and cfn-lint. Scripts use Bash; tests also require zsh.
+These checks do not call AWS; tests inject verifiers or signing keys for valid JWTs. Uncached
 dependencies may need network access.
 
 ```sh
