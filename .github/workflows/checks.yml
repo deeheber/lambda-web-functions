@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        stage: [01-hello-world, 02-cloudfront]
+        stage: [01-hello-world, 02-cloudfront, 03-canary]
     defaults:
       run:
         working-directory: examples/${{ matrix.stage }}

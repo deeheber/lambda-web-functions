@@ -185,8 +185,8 @@ over time from `/stream`.
 
 ## Continue or clean up
 
-To continue to the next stage, leave the application deployed. You can keep your
-custom domain or use the default CloudFront hostname.
+Continue with [Canary](../03-canary/README.md), leaving the application deployed.
+You can keep your custom domain or use the default CloudFront hostname.
 
 <details>
 <summary>Optional: remove the custom domain</summary>
