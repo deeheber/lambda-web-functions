@@ -57,11 +57,20 @@ it.each([
   [['https://example.com', '0'], 'token'], [['https://example.com', '1.5'], 'token'],
   [['https://example.com', '9007199254740992'], 'token'],
   [['file:///tmp/example', '1'], 'token'], [['https://user:pass@example.com', '1'], 'token'],
+  [['http://example.com', '1'], 'token'], [['http://192.168.1.1', '1'], 'token'],
+  [['http://localhost.example.com', '1'], 'token'],
   [['https://example.com/path', '1'], 'token'], [['https://example.com', '1', 'extra'], 'token'],
 ])('rejects invalid input before requesting anything: %j', async (args, token) => {
   const fetcher = vi.fn<typeof fetch>();
   await expect(sample(args as string[], token as string | undefined, fetcher)).rejects.toThrow('usage:');
   expect(fetcher).not.toHaveBeenCalled();
+});
+
+it.each(['localhost', '127.0.0.1', '[::1]'])('allows local HTTP sampling on %s', async (host) => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ buildId: 'local' }));
+  const result = await sample([`http://${host}:3000`, '1'], 'token', fetcher);
+  expect(result.successful).toBe(1);
+  expect(String(fetcher.mock.calls[0]![0])).toBe(`http://${host}:3000/whoami`);
 });
 
 it('the CLI rejects missing arguments without echoing credentials', () => {

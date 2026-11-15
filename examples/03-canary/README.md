@@ -24,7 +24,7 @@ do not change the service's separate automatic-deployment mode.
 
 ## Check locally
 
-Requires Node 24, SAM CLI 1.170+, and cfn-lint. Tests do not call AWS; dependency
+Requires Node 24, SAM CLI 1.170+, cfn-lint, Bash, and zsh. Tests do not call AWS; dependency
 installation may need network.
 
 ```sh

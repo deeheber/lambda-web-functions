@@ -12,7 +12,9 @@ export async function sample(args: string[], token: string | undefined, fetcher:
   const count = Number(countText);
   if (args.length !== 2 || !token?.trim() || /[\r\n]/.test(token) ||
       !/^\d+$/.test(countText!) || !Number.isSafeInteger(count) || count < 1 ||
-      !['http:', 'https:'].includes(url.protocol) || url.username || url.password ||
+      (url.protocol !== 'https:' &&
+        !(url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))) ||
+      url.username || url.password ||
       url.pathname !== '/' || url.search || url.hash) {
     throw new Error(usage);
   }
