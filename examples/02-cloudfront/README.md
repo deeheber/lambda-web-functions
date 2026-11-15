@@ -58,8 +58,8 @@ Stop the dev server with Ctrl+C.
 
 ## Check locally
 
-Build and template checks require SAM CLI 1.170+ and cfn-lint. These checks do not
-call AWS; tests inject verifiers or signing keys for valid JWTs. Uncached
+Requires Node 24, SAM CLI 1.170+, and cfn-lint. Scripts use Bash; tests also require zsh.
+These checks do not call AWS; tests inject verifiers or signing keys for valid JWTs. Uncached
 dependencies may need network access.
 
 ```sh
@@ -185,8 +185,8 @@ over time from `/stream`.
 
 ## Continue or clean up
 
-To continue to the next stage, leave the application deployed. You can keep your
-custom domain or use the default CloudFront hostname.
+Continue with [Canary](../03-canary/README.md), leaving the application deployed.
+You can keep your custom domain or use the default CloudFront hostname.
 
 <details>
 <summary>Optional: remove the custom domain</summary>

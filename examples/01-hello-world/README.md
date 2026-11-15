@@ -44,8 +44,8 @@ missing or invalid tokens return 401 before routing, including for unknown paths
 
 ## Check locally
 
-Build and template checks require SAM CLI 1.170+ and cfn-lint. No AWS credentials
-are needed. [CI](../../.github/workflows/checks.yml) runs:
+Requires Node 24, SAM CLI 1.170+, and cfn-lint. Scripts use Bash; tests also require zsh.
+No AWS credentials are needed. [CI](../../.github/workflows/checks.yml) runs:
 
 ```sh
 npm run typecheck

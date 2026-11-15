@@ -2,8 +2,7 @@
 
 ## Get started
 
-Start with [hello world](examples/01-hello-world/README.md), an Express app with IAM
-and Cognito JWT authentication. Local development requires Node 24.
+Start with [hello world](examples/01-hello-world/README.md). Requires Node 24.
 
 ```sh
 cd examples/01-hello-world
@@ -11,22 +10,10 @@ npm ci
 npm run dev
 ```
 
-- [Walkthrough](examples/01-hello-world/docs/walkthrough.md): learn by tracing requests and observing behavior.
-- [Roadmap](ROADMAP.md): the five learning stages and what to implement next.
-
-Continue with [CloudFront](examples/02-cloudfront/README.md) to separate origin access
-from user authentication, then add an optional custom domain.
+See the [roadmap](ROADMAP.md) for stage order, status, and walkthroughs.
 
 ## Working through stages
 
-Each folder preserves a runnable stage. Run commands from that folder.
-All stages target stack `lwf` in `us-west-2`; deploying another stage updates it.
-
-To compare stages, record observations, deploy the other stage, and repeat the
-checks. Switching stages may remove or replace resources. Teardown from any
-stage deletes the application stack.
-
-The optional CloudFront certificate uses a separate stack in `us-east-1`.
-Application teardown does not delete it. Follow the
-[CloudFront cleanup order](examples/02-cloudfront/README.md#clean-up-or-return-to-the-default-hostname)
-before deleting the certificate stack.
+Run commands from the stage's folder. All stages update stack `lwf` in `us-west-2`.
+Switching stages may remove or replace resources; teardown from any stage deletes
+the application stack.
