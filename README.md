@@ -24,7 +24,7 @@ All stages target stack `lwf` in `us-west-2`; deploying another stage updates it
 
 To compare stages, record observations, deploy the other stage, and repeat the
 checks. Switching stages may remove or replace resources. Teardown from any
-stage deletes the shared application stack.
+stage deletes the application stack.
 
 The optional CloudFront certificate uses a separate stack in `us-east-1`.
 Application teardown does not delete it. Follow the

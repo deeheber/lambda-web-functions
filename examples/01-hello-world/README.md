@@ -72,7 +72,7 @@ npm run smoke:jwt -- you@example.com
 ```
 
 Commands use `samconfig.toml`; smoke scripts override inherited `AWS_REGION`.
-Read the [shared-stack workflow](../../README.md#working-through-stages) before switching stages.
+Read the [application stack workflow](../../README.md#working-through-stages) before switching stages.
 
 For manual HTTP calls (zsh or Bash):
 
@@ -102,7 +102,7 @@ A missing or invalid `AUTH_MODE` stops startup.
 npm run teardown
 ```
 
-Deletes the shared AWS stack without prompting, including any later stage's resources.
+Deletes the application stack without prompting, including any later stage's resources.
 
 CloudWatch log groups remain, with no expiry by default. If you no longer need
 the logs, delete both functions' groups and their `.local` companions:

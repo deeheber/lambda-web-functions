@@ -133,24 +133,11 @@ curl -i -N "$BASE/stream" -H "Authorization: Bearer $TOKEN"
 ```
 
 Expect 401, 401, then 200 with `authMode: jwt` and the user's subject. Stream ticks
-should arrive over time. Cognito issues the token before the HTTP request.
-The app uses Cognito's public signing keys to verify the signature, issuer,
-client, expiration, and access-token use.
+should arrive over time.
 
-`always-amz-auth` preserves the viewer's bearer token while CloudFront adds its
-own signature. The cache policy explicitly includes `Authorization`, as required
-for Web Function GET/HEAD requests. `AllViewerExceptHostHeader` forwards viewer
-headers, cookies, and query strings while using the Lambda origin's `Host`.
-
-The cache policy has MinTTL 0, DefaultTTL 0, and MaxTTL 1 second. Every app response
-sends `no-store`, including `/stream`, authentication failures, and errors. Selected
-error-cache TTLs are also zero to prevent cached errors delaying recovery.
-
-AWS notes that the last `X-Forwarded-For` entry is a CloudFront address. This app
-does not trust forwarded headers, enable Express `trust proxy`, or use
-`lambda-web-*` headers for authentication or routing. WAF is deferred. Do not add
-Lambda@Edge origin-request/origin-response triggers; Web Function origins with
-OAC do not support them.
+CloudFront signs requests to authenticate itself to Lambda while preserving the
+user's bearer token. The app then verifies that token using Cognito's public
+signing keys.
 
 ## 3. Add an optional custom domain
 
@@ -165,8 +152,8 @@ certificate. Pass the certificate ARN to the application stack in `us-west-2`.
 Replace the sample values below.
 
 ```sh
-DOMAIN='app.example.com'
-ZONE_ID='Z0123456789EXAMPLE'
+DOMAIN='app.example.com' # Replace with your domain
+ZONE_ID='Z0123456789EXAMPLE' # Replace with your Route 53 hosted zone ID
 CERT_STACK='lwf-cloudfront-certificate'
 aws cloudformation deploy --region us-east-1 \
   --stack-name "$CERT_STACK" --template-file certificate.yaml \
@@ -176,9 +163,6 @@ CERT_ARN="$(aws cloudformation describe-stacks --region us-east-1 \
   --query 'Stacks[0].Outputs[?OutputKey==`CertificateArn`].OutputValue' --output text)"
 npm run deploy -- --parameter-overrides \
   DomainName="$DOMAIN" CertificateArn="$CERT_ARN" HostedZoneId="$ZONE_ID"
-curl -i "https://$DOMAIN/health"
-TOKEN="$(npm run --silent get-jwt -- you@example.com)"
-curl -i "https://$DOMAIN/whoami" -H "Authorization: Bearer $TOKEN"
 ```
 
 The certificate stack creates a DNS validation CNAME. The application stack creates
@@ -186,28 +170,60 @@ A and AAAA aliases for IPv4 and IPv6 traffic. After distribution and DNS propaga
 compare the custom domain with the default CloudFront hostname; both should enforce
 the same JWTs.
 
-Supply all three domain parameters together when updating a domain-enabled
-deployment. App deployment does not create or update the certificate stack.
+Using `$DOMAIN` from above, call all three endpoints. Replace `you@example.com`
+with your Cognito user's email.
 
-## Clean up or return to the default hostname
+```sh
+curl -i "https://$DOMAIN/health"
+TOKEN="$(npm run --silent get-jwt -- you@example.com)"
+curl -i "https://$DOMAIN/whoami" -H "Authorization: Bearer $TOKEN"
+curl -i -N "https://$DOMAIN/stream" -H "Authorization: Bearer $TOKEN"
+```
 
-The following commands access AWS. To keep the app but remove the custom domain:
+Expect 200 responses, your user's subject from `/whoami`, and stream ticks arriving
+over time from `/stream`.
+
+## Continue or clean up
+
+To continue to the next stage, leave the application deployed. You can keep your
+custom domain or use the default CloudFront hostname.
+
+<details>
+<summary>Optional: remove the custom domain</summary>
+
+These commands access AWS. Keep the application and return to the default
+CloudFront hostname:
 
 ```sh
 npm run deploy -- --parameter-overrides \
   'DomainName=""' 'CertificateArn=""' 'HostedZoneId=""'
 ```
 
-Wait for the distribution update to complete before deleting its certificate.
-Alternatively, delete the shared application stack first:
+After the distribution update completes, you can also delete the certificate
+stack created in step 3:
+
+```sh
+aws cloudformation delete-stack --region us-east-1 --stack-name "$CERT_STACK"
+aws cloudformation wait stack-delete-complete --region us-east-1 --stack-name "$CERT_STACK"
+```
+
+Keep the hosted zone. ACM validation CNAMEs can remain; before removing one,
+check whether another certificate uses it, including in other Regions.
+
+</details>
+
+<details>
+<summary>Optional: delete the tutorial resources</summary>
+
+These commands access AWS. Delete the application stack:
 
 ```sh
 npm run teardown
 ```
 
-This removes the distribution, aliases, OAC, policy, and shared app/Cognito
-resources, including users. It does not delete the certificate stack. Once the
-certificate is no longer associated with CloudFront, delete its stack separately:
+This removes the distribution, aliases, OAC, policy, and app/Cognito
+resources, including users. If you created the certificate stack in step 3,
+delete it after application teardown completes:
 
 ```sh
 aws cloudformation delete-stack --region us-east-1 --stack-name "$CERT_STACK"
@@ -232,6 +248,8 @@ done
 ```
 
 An absent group returns an error.
+
+</details>
 
 ## AWS references
 
