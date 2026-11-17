@@ -48,8 +48,11 @@ incur cross-AZ transfer charges.
 The function, endpoint, Cognito pool/client, distribution, OAC, policy, and optional
 DNS records keep their logical IDs. The code and connector settings replace the
 revision; `UpdateReplacePolicy: Retain` keeps its predecessor. No existing resource
-is intentionally removed. A newer AMI can replace the instance on a later
-deployment, changing its IP and replacing the revision too.
+is intentionally removed. CloudFormation resolves the latest-AL2023 SSM parameter
+on each deployment. A newer AMI can replace the instance, changing its IP and
+replacing the revision too. Retaining a revision does not retain the old instance:
+do not route traffic back to an old VPC revision after its instance is deleted.
+Review AMI changes in every change set.
 
 The revision pins a connector version. SAM creates its operator role separately
 from the function execution role, which does not manage network interfaces.
@@ -185,8 +188,12 @@ and an endpoint routing update. The function, endpoint, Cognito pool/client,
 distribution, OAC, and existing domain records should not need replacement. Stop
 if the change set proposes an unexpected replacement or deletion.
 
-CloudFormation success does not prove the Python service is ready: EC2 user data
-can finish after the instance resource is created. Check the live path next.
+CloudFormation waits up to ten minutes for the new instance's local `/ping` check
+and `cfn-signal`. A failed or missing signal fails the deployment before the new
+revision takes traffic. The standard AL2023 AMI includes the helper; it uses stack
+membership rather than an instance role. The instance keeps outbound HTTPS for
+that signal. This gate runs on instance creation or replacement, not on every
+update or reboot. Verify the connector path separately in step 3.
 
 ## 3. Verify routing and private access
 
@@ -272,9 +279,10 @@ authentication, private access, streaming, and any configured domain checks pass
 |---|---|
 | `/private-ping` is 404 with a valid token | Check `/whoami` build and endpoint weights. A retained Canary baseline has no new route. |
 | `/health` works but a valid JWT is rejected | Health does not fetch keys. Check token expiry/pool, NAT state, private routes, HTTPS egress, and DNS resolution for Cognito. |
-| `/private-ping` is 502 | The service may still be booting, refuse the connection, or return invalid data. Check the instance and bootstrap output below; retry after readiness. |
+| `/private-ping` is 502 | Check the function log's `private_service_failed` reason: `connection_refused`, `upstream_status`, `invalid_response`, or `request_failed`. Check instance status and bootstrap output below. |
 | `/private-ping` is 504 | Check connector state, subnet/AZ selection, both security-group directions, and instance readiness. |
 | Connector creation or update fails | Inspect its state reason and CloudFormation events; check available subnet IPs, operator-role permissions, and deployer pass permissions. |
+| Instance creation fails waiting for a signal | Inspect console output, NAT/private routes, HTTPS egress to CloudFormation, and the preinstalled signal helper. A successful local ping alone does not prove the signal reached CloudFormation. |
 | Change set removes the custom domain | Stop and provide the existing domain, certificate, and hosted-zone parameters together. |
 
 These diagnostic commands are read-only but access AWS:
@@ -285,6 +293,7 @@ aws cloudformation describe-stack-events --stack-name "$STACK_NAME" \
 aws ec2 describe-instance-status --instance-ids "$INSTANCE" --include-all-instances
 aws ec2 get-console-output --instance-id "$INSTANCE" --latest \
   --query Output --output text
+aws logs tail "/aws/lambda/web/$FUNCTION_NAME" --since 10m
 ```
 
 Look for `Private HTTP service ready` in console output; output can lag. User data
@@ -293,6 +302,8 @@ SSH or SSM instance role in this lab. If bootstrap fails, inspect the output and
 correct the template before replacing the instance; do not open public ingress.
 A successful bootstrap check confirms only the instance's local service, not
 connector connectivity.
+Function failure logs contain only a fixed reason, without tokens, URLs, response
+bodies, or raw error messages.
 
 ## 5. Clean up
 
@@ -369,4 +380,6 @@ revisions can still reference it. Full application teardown avoids that transiti
 - [SAM Web Function routing](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-webfunction.html)
 - [AL2023 Python](https://docs.aws.amazon.com/linux/al2023/ug/python.html)
 - [Public AMI parameters](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/finding-an-ami-parameter-store.html)
+- [CreationPolicy and resource signals](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-attribute-creationpolicy.html)
+- [cfn-signal and stack membership](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/cfn-signal.html)
 - [Connector deletion and asynchronous interface cleanup](https://docs.aws.amazon.com/cli/latest/reference/lambda-core/delete-network-connector.html)

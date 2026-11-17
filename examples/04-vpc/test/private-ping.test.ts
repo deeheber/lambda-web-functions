@@ -1,7 +1,7 @@
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import request from 'supertest';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/app.ts';
 import { loadConfig } from '../src/config.ts';
 
@@ -16,6 +16,8 @@ const verifier = {
   },
 };
 const payload = { service: 'private-http', callerIp: '10.42.1.12' };
+
+beforeEach(() => vi.spyOn(console, 'error').mockImplementation(() => {}));
 
 afterEach(() => {
   vi.useRealTimers();
@@ -47,18 +49,20 @@ describe('GET /private-ping', () => {
   });
 
   it.each([
-    () => Promise.reject(new Error('connection details')),
-    () => Promise.resolve(new Response('private detail', { status: 503 })),
-    () => Promise.resolve(new Response('not JSON')),
-    () => Promise.resolve(Response.json(null)),
-    () => Promise.resolve(Response.json({ ...payload, callerIp: 'not-an-ip' })),
-    () => Promise.resolve(Response.json({ ...payload, service: 'wrong-service' })),
-  ])('returns a fixed 502 for an unavailable or invalid service', async (fetchService) => {
+    ['network failure', () => Promise.reject(new Error('private connection details')), 'request_failed'],
+    ['connection refused', () => Promise.reject(new Error('private URL', { cause: { code: 'ECONNREFUSED', secret: 'private detail' } })), 'connection_refused'],
+    ['HTTP failure', () => Promise.resolve(new Response('private detail', { status: 503 })), 'upstream_status'],
+    ['invalid JSON', () => Promise.resolve(new Response('not JSON')), 'invalid_response'],
+    ['null body', () => Promise.resolve(Response.json(null)), 'invalid_response'],
+    ['invalid IP', () => Promise.resolve(Response.json({ ...payload, callerIp: 'not-an-ip' })), 'invalid_response'],
+    ['wrong service', () => Promise.resolve(Response.json({ ...payload, service: 'wrong-service' })), 'invalid_response'],
+  ] as const)('returns a fixed 502 and a safe diagnostic for %s', async (_name, fetchService, reason) => {
     const res = await request(createApp(config, { verifier, fetch: fetchService }))
       .get('/private-ping').set('Authorization', 'Bearer good');
     expect(res.status).toBe(502);
     expect(res.body).toEqual({ error: 'private_service_unavailable' });
     expect(res.headers['cache-control']).toBe('no-store');
+    expect(console.error).toHaveBeenCalledExactlyOnceWith(JSON.stringify({ msg: 'private_service_failed', reason }));
   });
 
   it('aborts a stalled response body using the real HTTP transport', async () => {
@@ -92,6 +96,7 @@ describe('GET /private-ping', () => {
       expect(res.status).toBe(504);
       expect(res.body).toEqual({ error: 'private_service_timeout' });
       expect(res.headers['cache-control']).toBe('no-store');
+      expect(console.error).toHaveBeenCalledExactlyOnceWith(JSON.stringify({ msg: 'private_service_failed', reason: 'timeout' }));
       await aborted;
     } finally {
       vi.useRealTimers();

@@ -1,5 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
@@ -20,6 +22,7 @@ function template(file: string) {
 }
 const t = template('template.yaml');
 const certificate = template('certificate.yaml');
+const bootstrap: string = t.Resources.PrivateService.Properties.UserData['Fn::Base64']['Fn::Sub'];
 
 function evaluate(value: unknown, parameters: Record<string, string>): unknown {
   if (typeof value !== 'object' || value === null) return value;
@@ -38,10 +41,9 @@ function evaluate(value: unknown, parameters: Record<string, string>): unknown {
 
 describe('VPC deployment contracts', () => {
   it('bootstraps a Python service that echoes the socket peer rather than forwarded headers', () => {
-    const script: string = t.Resources.PrivateService.Properties.UserData['Fn::Base64'];
-    const shell = spawnSync('bash', ['-n'], { input: script, encoding: 'utf8' });
+    const shell = spawnSync('bash', ['-n'], { input: bootstrap, encoding: 'utf8' });
     expect(shell.status, shell.stderr).toBe(0);
-    const python = script.split("<<'PYTHON'\n")[1]!.split('\nPYTHON')[0]!;
+    const python = bootstrap.split("<<'PYTHON'\n")[1]!.split('\nPYTHON')[0]!;
     const result = spawnSync('python3', ['-c', `
 import http.client, json, sys, threading
 scope = {'__name__': 'private_http_test'}
@@ -66,6 +68,36 @@ finally:
     thread.join()
 `], { input: JSON.stringify(python), encoding: 'utf8', timeout: 5000 });
     expect(result.status, result.stderr).toBe(0);
+  });
+
+  it.each([0, 1])('signals bootstrap exit code %i without AWS calls', (status) => {
+    const fixture = mkdtempSync(join(tmpdir(), 'lwf-bootstrap-'));
+    try {
+      mkdirSync(join(fixture, 'units'));
+      mkdirSync(join(fixture, 'bin'));
+      writeFileSync(join(fixture, 'bin/systemctl'), '#!/bin/sh\nexit 0\n', { mode: 0o700 });
+      writeFileSync(join(fixture, 'bin/curl'), '#!/bin/sh\nexit "$BOOTSTRAP_STATUS"\n', { mode: 0o700 });
+      writeFileSync(join(fixture, 'signal'), '#!/bin/sh\nprintf "%s\\n" "$@" > "$FIXTURE_DIR/signal.args"\n', { mode: 0o700 });
+      const script = bootstrap
+        .replaceAll('/opt/private-http', '"$FIXTURE_DIR/private-http"')
+        .replaceAll('/etc/systemd/system', '"$FIXTURE_DIR/units"')
+        .replace('/var/log/private-http-setup.log', '"$FIXTURE_DIR/setup.log"')
+        .replace('/dev/console', '"$FIXTURE_DIR/console"')
+        .replace('/opt/aws/bin/cfn-signal', '"$FIXTURE_DIR/signal"')
+        .replaceAll('${AWS::StackName}', 'fixture-stack')
+        .replaceAll('${AWS::Region}', 'us-west-2');
+      const result = spawnSync('bash', ['-c', script], {
+        encoding: 'utf8', timeout: 5000,
+        env: { PATH: `${join(fixture, 'bin')}:${process.env.PATH}`, FIXTURE_DIR: fixture, BOOTSTRAP_STATUS: String(status) },
+      });
+      expect(result.status, result.stderr).toBe(status);
+      expect(readFileSync(join(fixture, 'signal.args'), 'utf8').trim().split('\n')).toEqual([
+        '--exit-code', String(status), '--stack', 'fixture-stack', '--resource', 'PrivateService', '--region', 'us-west-2',
+      ]);
+      expect(result.stdout.includes('Private HTTP service ready')).toBe(status === 0);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
   });
 
   it('retains the IAM endpoint and Cognito while enforcing JWTs in the sole app', () => {
@@ -104,6 +136,10 @@ finally:
   });
 
   it('provides two AZs and NAT egress without assigning the service a public IP', () => {
+    expect(t.Resources.PrivateService).toMatchObject({
+      DependsOn: ['PrivateRoute', 'PrivateSubnetAAssociation'],
+      CreationPolicy: { ResourceSignal: { Count: 1, Timeout: 'PT10M' } },
+    });
     for (const [name, index] of [['PrivateSubnetA', 0], ['PrivateSubnetB', 1]] as const) {
       expect(t.Resources[name].Properties).toMatchObject({
         VpcId: { Ref: 'Vpc' }, MapPublicIpOnLaunch: false,

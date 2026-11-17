@@ -236,6 +236,11 @@ Resources:
 
   PrivateService:
     Type: AWS::EC2::Instance
+    DependsOn: [PrivateRoute, PrivateSubnetAAssociation]
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT10M
     Properties:
       ImageId: !Ref PrivateServiceAmi
       InstanceType: t4g.nano
@@ -259,10 +264,17 @@ Resources:
         - Key: Name
           Value: !Sub ${AWS::StackName}-private-http
       UserData:
-        Fn::Base64: |
+        Fn::Base64: !Sub |
           #!/bin/bash
           set -euo pipefail
           exec > >(tee -a /var/log/private-http-setup.log /dev/console) 2>&1
+          signal_result() {
+            result=$?
+            trap - EXIT
+            /opt/aws/bin/cfn-signal --exit-code "$result" --stack '${AWS::StackName}' --resource PrivateService --region '${AWS::Region}'
+            exit "$result"
+          }
+          trap signal_result EXIT
           mkdir -p /opt/private-http
           cat > /opt/private-http/server.py <<'PYTHON'
           import json
@@ -307,7 +319,7 @@ Resources:
           UNIT
           systemctl daemon-reload
           systemctl enable --now private-http.service
-          curl --fail --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:8080/ping
+          curl --fail --max-time 2 --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:8080/ping
           echo 'Private HTTP service ready'
 
   IamFunction:
