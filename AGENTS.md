@@ -2,7 +2,7 @@
 
 ## Working boundaries
 
-- Do not run `deploy`, `teardown`, `get-jwt`, `smoke:iam`, `smoke:jwt`, or the internal `check-jwt.sh` unless explicitly requested; they access AWS.
+- Do not run `deploy`, `teardown`, `get-jwt`, `smoke:iam`, `smoke:jwt`, `sample`, or the internal `check-jwt.sh` unless explicitly requested; they access AWS or the deployed application.
 - Stop any local dev servers you start before finishing.
 - Tests must not call AWS services. Use fakes or injected JWKS for authentication tests.
 - Remove the CloudFront association before deleting its separate certificate stack.

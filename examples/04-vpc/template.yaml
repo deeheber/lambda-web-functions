@@ -1,0 +1,500 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Private HTTP access through a VPC connector, with CloudFront OAC and Cognito JWTs.
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: ""
+    Description: Optional custom hostname covered by the certificate, without a scheme or trailing dot.
+  CertificateArn:
+    Type: String
+    Default: ""
+    AllowedPattern: '^(arn:aws:acm:us-east-1:[0-9]{12}:certificate/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$'
+    ConstraintDescription: Supply an ACM certificate ARN in us-east-1, or leave empty.
+  HostedZoneId:
+    Type: String
+    Default: ""
+    Description: Existing public Route 53 zone containing DomainName, in this account.
+  PrivateServiceAmi:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
+    Description: Standard AL2023 arm64 AMI, including the system Python.
+  TimeoutSeconds:
+    Type: Number
+    Default: 30
+    MinValue: 3
+    MaxValue: 900
+  MaxConcurrencyPerEnvironment:
+    Type: Number
+    Default: 64
+    MinValue: 1
+    MaxValue: 128
+  MaxEnvironments:
+    Type: Number
+    Default: 2
+    MinValue: 2
+    Description: ASSUMPTION - cost cap, maximum execution environments per function.
+  RateLimit:
+    Type: Number
+    Default: 100
+    AllowedValues: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+    Description: Maximum requests per second per endpoint in each Region.
+  ApplicationLogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [TRACE, DEBUG, INFO, WARN, ERROR, FATAL]
+  SystemLogLevel:
+    Type: String
+    Default: WARN
+    AllowedValues: [DEBUG, INFO, WARN]
+
+Rules:
+  CustomDomainParameters:
+    Assertions:
+      - Assert:
+          Fn::Or:
+            - Fn::And:
+                - Fn::Equals: [!Ref DomainName, ""]
+                - Fn::Equals: [!Ref CertificateArn, ""]
+                - Fn::Equals: [!Ref HostedZoneId, ""]
+            - Fn::And:
+                - Fn::Not: [{Fn::Equals: [!Ref DomainName, ""]}]
+                - Fn::Not: [{Fn::Equals: [!Ref CertificateArn, ""]}]
+                - Fn::Not: [{Fn::Equals: [!Ref HostedZoneId, ""]}]
+        AssertDescription: Supply DomainName, CertificateArn, and HostedZoneId together, or leave all empty.
+
+Conditions:
+  HasCustomDomain: !And
+    - !Not [!Equals [!Ref DomainName, ""]]
+    - !Not [!Equals [!Ref CertificateArn, ""]]
+    - !Not [!Equals [!Ref HostedZoneId, ""]]
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.42.0.0/16
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-vpc-lab
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.0.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: false
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: false
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: false
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+
+  PublicSubnetAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  NatAddress:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    DependsOn: [GatewayAttachment, PublicRoute, PublicSubnetAssociation]
+    Properties:
+      AllocationId: !GetAtt NatAddress.AllocationId
+      SubnetId: !Ref PublicSubnet
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+
+  PrivateSubnetAAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetBAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  ConnectorSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Connector HTTPS egress for Cognito signing keys.
+      VpcId: !Ref Vpc
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+  PrivateServiceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Private HTTP only from the Web Function connector.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref ConnectorSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+  # A separate rule avoids a circular dependency between the security groups.
+  ConnectorHttpEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref ConnectorSecurityGroup
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      DestinationSecurityGroupId: !Ref PrivateServiceSecurityGroup
+
+  Connector:
+    Type: AWS::Serverless::NetworkConnector
+    DependsOn: [PrivateRoute, PrivateSubnetAAssociation, PrivateSubnetBAssociation, ConnectorHttpEgress]
+    Properties:
+      ComputeTypes: [WebFunction]
+      VpcConfig:
+        SubnetIds: [!Ref PrivateSubnetA, !Ref PrivateSubnetB]
+        SecurityGroupIds: [!Ref ConnectorSecurityGroup]
+        NetworkProtocol: IPv4
+
+  PrivateService:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref PrivateServiceAmi
+      InstanceType: t4g.nano
+      CreditSpecification:
+        CPUCredits: standard
+      MetadataOptions:
+        HttpTokens: required
+      NetworkInterfaces:
+        - DeviceIndex: '0'
+          AssociatePublicIpAddress: false
+          SubnetId: !Ref PrivateSubnetA
+          GroupSet: [!Ref PrivateServiceSecurityGroup]
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: 8
+            Encrypted: true
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-private-http
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          set -euo pipefail
+          exec > >(tee -a /var/log/private-http-setup.log /dev/console) 2>&1
+          mkdir -p /opt/private-http
+          cat > /opt/private-http/server.py <<'PYTHON'
+          import json
+          from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+          class Handler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  if self.path != '/ping':
+                      self.send_error(404)
+                      return
+                  body = json.dumps({
+                      'service': 'private-http',
+                      'callerIp': self.client_address[0],
+                  }).encode()
+                  self.send_response(200)
+                  self.send_header('Content-Type', 'application/json')
+                  self.send_header('Content-Length', str(len(body)))
+                  self.send_header('Cache-Control', 'no-store')
+                  self.end_headers()
+                  self.wfile.write(body)
+
+          if __name__ == '__main__':
+              ThreadingHTTPServer(('0.0.0.0', 8080), Handler).serve_forever()
+          PYTHON
+          cat > /etc/systemd/system/private-http.service <<'UNIT'
+          [Unit]
+          Description=Private HTTP learning service
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/python3 /opt/private-http/server.py
+          User=nobody
+          Group=nobody
+          Restart=on-failure
+          NoNewPrivileges=true
+          ProtectSystem=strict
+          ProtectHome=true
+          PrivateTmp=true
+
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+          systemctl daemon-reload
+          systemctl enable --now private-http.service
+          curl --fail --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:8080/ping
+          echo 'Private HTTP service ready'
+
+  IamFunction:
+    Type: AWS::Serverless::WebFunction
+    DependsOn: Connector
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
+    Metadata:
+      # cfn-lint 1.59.0 lacks Connector.LatestVersionArn in its resource schema.
+      # SAM moves the egress reference to the revision; explicit DependsOn also
+      # orders function deletion before connector deletion despite lint W3005.
+      cfn-lint:
+        config:
+          ignore_checks: [E1010, W3005]
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        Banner:
+          - 'js=import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
+        Target: node24
+        EntryPoints:
+          - src/server.ts
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-iam
+      Runtime: nodejs24.x
+      CodeUri: ./
+      EntryPoint: src/server.ts
+      # Move traffic off the retained baseline left serving by the canary exercise.
+      AutoDeploymentMode: LatestRevision
+      EgressNetworkConnectorArn: !GetAtt Connector.LatestVersionArn
+      EndpointName: iam
+      EndpointDescription: CloudFront signs origin requests; the app verifies Cognito JWTs.
+      EndpointType: HomeRegion
+      AuthType: IamAuth
+      Timeout: !Ref TimeoutSeconds
+      MaxConcurrencyPerEnvironment: !Ref MaxConcurrencyPerEnvironment
+      LoggingConfig:
+        ApplicationLogLevel: !Ref ApplicationLogLevel
+        SystemLogLevel: !Ref SystemLogLevel
+      ScalingConfig:
+        MaxEnvironments: !Ref MaxEnvironments
+      ThrottleConfig:
+        RateLimit: !Ref RateLimit
+      EnvironmentVariables:
+        PRIVATE_SERVICE_URL: !Sub http://${PrivateService.PrivateIp}:8080/ping
+        AUTH_MODE: jwt
+        COGNITO_USER_POOL_ID: !Ref UserPool
+        COGNITO_CLIENT_ID: !Ref UserPoolClient
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub ${AWS::StackName}-web
+        OriginAccessControlOriginType: lambda
+        SigningProtocol: sigv4
+        SigningBehavior: always-amz-auth
+
+  JwtCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub ${AWS::StackName}-jwt
+        # A positive MaxTTL avoids zero-TTL header restrictions; the app sends no-store.
+        MinTTL: 0
+        DefaultTTL: 0
+        MaxTTL: 1
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: false
+          EnableAcceptEncodingBrotli: false
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers: [Authorization]
+          CookiesConfig:
+            CookieBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        IPV6Enabled: true
+        HttpVersion: http2
+        Aliases: !If [HasCustomDomain, [!Ref DomainName], !Ref AWS::NoValue]
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
+        Origins:
+          - Id: WebFunction
+            DomainName: !GetAtt IamFunctionEndpoint.DomainName
+            OriginAccessControlId: !Ref OriginAccessControl
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+        DefaultCacheBehavior:
+          TargetOriginId: WebFunction
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: !Ref JwtCachePolicy
+          # Managed AllViewerExceptHostHeader: Lambda expects its own origin hostname.
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 414
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 500
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 501
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 502
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 503
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 504
+            ErrorCachingMinTTL: 0
+
+  CloudFrontInvokePolicy:
+    Type: AWS::Lambda::ResourcePolicy
+    Properties:
+      ResourceArn: !GetAtt IamFunctionEndpoint.FunctionArn
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowDistribution
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: lambda:InvokeWebFunctionEndpoint
+            Resource: !GetAtt IamFunctionEndpoint.EndpointArn
+            Condition:
+              StringEquals:
+                aws:SourceArn: !Sub arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}
+
+  DomainRecords:
+    Type: AWS::Route53::RecordSetGroup
+    Condition: HasCustomDomain
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      RecordSets:
+        - Name: !Ref DomainName
+          Type: A
+          AliasTarget:
+            DNSName: !GetAtt Distribution.DomainName
+            HostedZoneId: Z2FDTNDATAQYW2
+            EvaluateTargetHealth: false
+        - Name: !Ref DomainName
+          Type: AAAA
+          AliasTarget:
+            DNSName: !GetAtt Distribution.DomainName
+            HostedZoneId: Z2FDTNDATAQYW2
+            EvaluateTargetHealth: false
+
+Outputs:
+  VpcId:
+    Value: !Ref Vpc
+  ConnectorArn:
+    Value: !Ref Connector
+  PrivateServiceId:
+    Value: !Ref PrivateService
+  PrivateServiceUrl:
+    Value: !Sub http://${PrivateService.PrivateIp}:8080/ping
+  NatGatewayId:
+    Value: !Ref NatGateway
+  NatAllocationId:
+    Value: !GetAtt NatAddress.AllocationId
+  CurrentRevisionId:
+    Description: Revision currently managed by the stack, which may not be serving traffic.
+    Value: !GetAtt IamFunctionRevision.RevisionId
+  IamEndpointUrl:
+    Value: !Sub "https://${IamFunctionEndpoint.DomainName}"
+  IamFunctionName:
+    Value: !Sub ${AWS::StackName}-iam
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Value: !Ref UserPoolClient
+  CloudFrontEndpointUrl:
+    Value: !Sub "https://${Distribution.DomainName}"
+  DistributionId:
+    Value: !Ref Distribution
+  CustomDomainUrl:
+    Condition: HasCustomDomain
+    Value: !Sub "https://${DomainName}"

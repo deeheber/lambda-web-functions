@@ -7,12 +7,12 @@ Follow the stages in order:
 | [Hello world](examples/01-hello-world/README.md) | Available | [Walkthrough](examples/01-hello-world/docs/walkthrough.md): requests, authentication, reuse, and concurrency. |
 | [CloudFront](examples/02-cloudfront/README.md) ([#4](https://github.com/deeheber/lambda-web-functions/issues/4)) | Available | Separate origin access from user authentication with OAC and JWT forwarding; optionally add a custom domain. |
 | [Canary](examples/03-canary/README.md) ([#1](https://github.com/deeheber/lambda-web-functions/issues/1)) | Available | Split traffic between identifiable builds, promote one, then roll back. |
-| VPC ([#3](https://github.com/deeheber/lambda-web-functions/issues/3)) | Planned | Reach a private HTTP service before introducing a database. |
+| [VPC](examples/04-vpc/README.md) ([#3](https://github.com/deeheber/lambda-web-functions/issues/3)) | Live validation pending | Reach a private HTTP service through a version-pinned connector; short lab with explicit cost and cleanup steps. |
 | MultiRegion ([#2](https://github.com/deeheber/lambda-web-functions/issues/2)) | Planned | Expose the serving Region and compare regional routing. |
 
 ## Adding a stage
 
-- Use `examples/04-vpc` or `examples/05-multiregion` for the remaining stages.
+- Use `examples/05-multiregion` for the remaining stage.
 - Include runnable code, tests, package files, a template, and SAM configuration.
 - Add the stage's folder name to `matrix.stage` in `.github/workflows/checks.yml`.
 - Build on the previous stage using the [same stack](README.md#working-through-stages).
