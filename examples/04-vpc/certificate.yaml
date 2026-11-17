@@ -1,0 +1,25 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Optional CloudFront viewer certificate. Deploy separately in us-east-1.
+
+Parameters:
+  DomainName:
+    Type: String
+    Description: Custom hostname, without a scheme or trailing dot.
+    MinLength: 1
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: Existing public Route 53 zone containing DomainName, in this account.
+
+Resources:
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+
+Outputs:
+  CertificateArn:
+    Value: !Ref Certificate
