@@ -2,17 +2,16 @@ import { SAMPLE_TIMEOUT_MS } from '../src/config.ts';
 
 const usage = 'usage: TOKEN=<access-token> npm run sample -- <base-url> <positive-count>';
 
-export async function sample(args: string[], token: string | undefined, fetcher: typeof fetch = fetch) {
-  const [base, countText] = args;
+export async function sample(base: string, countText: string, token: string | undefined, fetcher: typeof fetch = fetch) {
   let url: URL;
   try {
-    url = new URL(base!);
+    url = new URL(base);
   } catch {
     throw new Error(usage);
   }
   const count = Number(countText);
-  if (args.length !== 2 || !token?.trim() || /[\r\n]/.test(token) ||
-      !/^\d+$/.test(countText!) || !Number.isSafeInteger(count) || count < 1 ||
+  if (!token?.trim() || /[\r\n]/.test(token) ||
+      !/^\d+$/.test(countText) || !Number.isSafeInteger(count) || count < 1 ||
       (url.protocol !== 'https:' &&
         !(url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))) ||
       url.username || url.password ||
@@ -66,7 +65,9 @@ export async function sample(args: string[], token: string | undefined, fetcher:
 
 if (import.meta.main) {
   try {
-    const result = await sample(process.argv.slice(2), process.env.TOKEN);
+    const [base, count] = process.argv.slice(2);
+    if (process.argv.length !== 4) throw new Error(usage);
+    const result = await sample(base, count, process.env.TOKEN);
     console.log(JSON.stringify(result, null, 2));
     process.exitCode = result.successful === result.requested ? 0 : 1;
   } catch {

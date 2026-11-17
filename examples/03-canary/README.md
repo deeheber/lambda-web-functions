@@ -56,6 +56,9 @@ The remaining numbered steps access AWS and the deployed application. Requires
 AWS CLI v2 with `lambda-web` support and credentials; set `AWS_PROFILE` if needed.
 Start with the checked-in `BUILD_ID = "baseline-v1"` and `AutoDeploymentMode: LatestRevision`.
 
+Each deployment prompts you to approve its change set. Review the proposed
+changes, then enter `y` to continue.
+
 ```sh
 npm run deploy -- --confirm-changeset &&
 source scripts/env.sh &&
@@ -69,7 +72,8 @@ Review the change set before accepting: only the revision should need replacemen
 Record the baseline ID and keep this terminal open. Do not overwrite `BASELINE_REV`
 after creating the candidate.
 
-Define this read-only check:
+Define and run this read-only check in the same terminal session as the deployment
+above. Use that terminal for all later `check_endpoint` calls.
 
 ```sh
 check_endpoint() {
@@ -105,6 +109,16 @@ Refresh `TOKEN` with the same command if it expires; 401s are failures, not buil
 Under `IamFunction.Properties` in `template.yaml`, replace
 `AutoDeploymentMode: LatestRevision` with the following. Use the recorded revision
 ID as the YAML key; shell variables and parameter references do not work here.
+
+In your deployment terminal, print the baseline revision saved in step 1:
+
+```sh
+echo "$BASELINE_REV"
+```
+
+Replace `rev-REPLACE-WITH-BASELINE-ID` below with that full `rev-...` value.
+If it prints nothing, find the `Baseline revision:` line in step 1's terminal
+output. Do not use a candidate revision ID.
 
 ```yaml
       AutoDeploymentMode: Disabled
@@ -246,10 +260,11 @@ npm run sample -- "$BASE" 100
 Expect only `baseline-v1` responses.
 `CurrentRevisionId` still identifies the candidate; rollback changes only routing.
 
-Complete this exercise before creating further revisions. Replaced revisions leave
-CloudFormation's management. Lambda can automatically delete old, unused revisions
-when its revision count exceeds the cleanup target of 50; after promotion, the
-baseline is unused. Retention is not an indefinite rollback guarantee.
+Finish the rollback before creating more revisions. After promotion, the baseline
+receives no traffic. Although it was retained when replaced, CloudFormation no
+longer manages it, and Lambda may automatically delete unused revisions when the
+revision count exceeds its cleanup target of 50. You can roll back to the baseline
+only while that revision still exists.
 
 SAM manages a separate code bucket stack. Revisions keep reading their code from
 that bucket, so do not delete its objects/versions or change access policies while

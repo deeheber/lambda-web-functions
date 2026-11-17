@@ -12,7 +12,7 @@ it('counts builds separately from failures and sends authenticated requests', as
     new Response('busy', { status: 429 }), new Response('not json'), Response.json({}),
   ];
   const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => responses.shift()!);
-  const result = await sample(['https://example.com', '7'], 'secret', fetcher);
+  const result = await sample('https://example.com', '7', 'secret', fetcher);
   expect(result).toEqual({
     requested: 7, successful: 3,
     builds: [
@@ -43,7 +43,7 @@ it.each(['headers', 'body'])('aborts stalled %s, reports it, and continues witho
       }));
     })
     .mockRejectedValueOnce(new Error('network error containing secret'));
-  const result = sample(['https://example.com', '2'], 'secret', fetcher);
+  const result = sample('https://example.com', '2', 'secret', fetcher);
   await vi.advanceTimersByTimeAsync(SAMPLE_TIMEOUT_MS);
   expect(await result).toEqual({
     requested: 2, successful: 0, builds: [], failures: { timeout: 1, 'request failed': 1 },
@@ -53,28 +53,31 @@ it.each(['headers', 'body'])('aborts stalled %s, reports it, and continues witho
 });
 
 it.each([
-  [[], 'token'], [['https://example.com', '1'], undefined],
-  [['https://example.com', '0'], 'token'], [['https://example.com', '1.5'], 'token'],
-  [['https://example.com', '9007199254740992'], 'token'],
-  [['file:///tmp/example', '1'], 'token'], [['https://user:pass@example.com', '1'], 'token'],
-  [['http://example.com', '1'], 'token'], [['http://192.168.1.1', '1'], 'token'],
-  [['http://localhost.example.com', '1'], 'token'],
-  [['https://example.com/path', '1'], 'token'], [['https://example.com', '1', 'extra'], 'token'],
-])('rejects invalid input before requesting anything: %j', async (args, token) => {
+  ['', '', 'token'], ['https://example.com', '1', undefined],
+  ['https://example.com', '0', 'token'], ['https://example.com', '1.5', 'token'],
+  ['https://example.com', '9007199254740992', 'token'],
+  ['file:///tmp/example', '1', 'token'], ['https://user:pass@example.com', '1', 'token'],
+  ['http://example.com', '1', 'token'], ['http://192.168.1.1', '1', 'token'],
+  ['http://localhost.example.com', '1', 'token'],
+  ['https://example.com/path', '1', 'token'],
+])('rejects invalid input before requesting anything: %j', async (base, count, token) => {
   const fetcher = vi.fn<typeof fetch>();
-  await expect(sample(args as string[], token as string | undefined, fetcher)).rejects.toThrow('usage:');
+  await expect(sample(base!, count!, token, fetcher)).rejects.toThrow('usage:');
   expect(fetcher).not.toHaveBeenCalled();
 });
 
 it.each(['localhost', '127.0.0.1', '[::1]'])('allows local HTTP sampling on %s', async (host) => {
   const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ buildId: 'local' }));
-  const result = await sample([`http://${host}:3000`, '1'], 'token', fetcher);
+  const result = await sample(`http://${host}:3000`, '1', 'token', fetcher);
   expect(result.successful).toBe(1);
   expect(String(fetcher.mock.calls[0]![0])).toBe(`http://${host}:3000/whoami`);
 });
 
-it('the CLI rejects missing arguments without echoing credentials', () => {
-  const result = spawnSync(process.execPath, ['scripts/sample.ts', 'https://example.com'], {
+it.each([
+  ['https://example.com'],
+  ['https://example.com', '1', 'extra'],
+])('the CLI rejects the wrong argument count without echoing credentials: %j', (...args) => {
+  const result = spawnSync(process.execPath, ['scripts/sample.ts', ...args], {
     cwd: new URL('..', import.meta.url), env: { TOKEN: 'private-token' }, encoding: 'utf8',
   });
   expect(result.status).toBe(2);
