@@ -8,8 +8,6 @@ import { parse } from 'yaml';
 function template(file: string) {
   return parse(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'), {
     customTags: [
-      { tag: '!GetAZs', resolve: (v: string) => ({ 'Fn::GetAZs': v }) },
-      { tag: '!Select', collection: 'seq', resolve: (v: { toJSON(): unknown }) => ({ 'Fn::Select': v.toJSON() }) },
       { tag: '!Ref', resolve: (v: string) => ({ Ref: v }) },
       { tag: '!Sub', resolve: (v: string) => ({ 'Fn::Sub': v }) },
       { tag: '!GetAtt', resolve: (v: string) => ({ 'Fn::GetAtt': v.split('.') }) },
@@ -140,16 +138,17 @@ finally:
       DependsOn: ['PrivateRoute', 'PrivateSubnetAAssociation'],
       CreationPolicy: { ResourceSignal: { Count: 1, Timeout: 'PT10M' } },
     });
-    for (const [name, index] of [['PrivateSubnetA', 0], ['PrivateSubnetB', 1]] as const) {
+    for (const [name, zone] of [['PrivateSubnetA', 'AvailabilityZoneA'], ['PrivateSubnetB', 'AvailabilityZoneB']] as const) {
       expect(t.Resources[name].Properties).toMatchObject({
         VpcId: { Ref: 'Vpc' }, MapPublicIpOnLaunch: false,
-        AvailabilityZone: { 'Fn::Select': [index, { 'Fn::GetAZs': '' }] },
+        AvailabilityZone: { Ref: zone },
       });
       const association = name === 'PrivateSubnetA' ? 'PrivateSubnetAAssociation' : 'PrivateSubnetBAssociation';
       expect(t.Resources[association].Properties).toEqual({
         SubnetId: { Ref: name }, RouteTableId: { Ref: 'PrivateRouteTable' },
       });
     }
+    expect(t.Resources.PublicSubnet.Properties.AvailabilityZone).toEqual({ Ref: 'AvailabilityZoneA' });
     expect(t.Resources.PrivateRoute.Properties).toMatchObject({
       RouteTableId: { Ref: 'PrivateRouteTable' }, DestinationCidrBlock: '0.0.0.0/0', NatGatewayId: { Ref: 'NatGateway' },
     });
@@ -187,6 +186,16 @@ finally:
       GroupId: { Ref: 'ConnectorSecurityGroup' }, IpProtocol: 'tcp', FromPort: 8080, ToPort: 8080,
       DestinationSecurityGroupId: { Ref: 'PrivateServiceSecurityGroup' },
     });
+  });
+
+  it('requires two explicit, distinct AZs without relying on default subnets', () => {
+    for (const name of ['AvailabilityZoneA', 'AvailabilityZoneB']) {
+      expect(t.Parameters[name].Type).toBe('AWS::EC2::AvailabilityZone::Name');
+      expect(t.Parameters[name].Default).toBeUndefined();
+    }
+    const rule = t.Rules.DistinctAvailabilityZones.Assertions[0].Assert;
+    expect(evaluate(rule, { AvailabilityZoneA: 'us-west-2a', AvailabilityZoneB: 'us-west-2a' })).toBe(false);
+    expect(evaluate(rule, { AvailabilityZoneA: 'us-west-2a', AvailabilityZoneB: 'us-west-2b' })).toBe(true);
   });
 
   it('signs HTTPS origin requests while preserving viewer Authorization and replacing Host', () => {

@@ -95,8 +95,9 @@ All remaining commands access AWS or the deployed application. Requires AWS CLI 
 with both `lambda-web` and `lambda-core` support, credentials, and permissions to
 update the tutorial stack and its EC2/VPC/IAM resources. Set `AWS_PROFILE` if needed.
 The deployment identity needs `lambda:PassNetworkConnector`, `iam:PassRole` for the
-operator role, and access to the public SSM AMI parameter. `CAPABILITY_IAM` acknowledges
-IAM creation; it does not grant these permissions.
+operator role, `ec2:DescribeAvailabilityZones`, and access to the public SSM AMI
+parameter. `CAPABILITY_IAM` acknowledges IAM creation; it does not grant these
+permissions.
 
 Use one Bash or zsh terminal through cleanup. `source scripts/env.sh` defines
 `STACK_NAME`, exports `AWS_REGION` from `samconfig.toml`, and defines `stack_output`.
@@ -157,6 +158,26 @@ proven cold start; existing environments and key caches affect the results.
 Keep the checked-in `AutoDeploymentMode: LatestRevision` and no `RevisionWeights`.
 Do not copy Canary's edited template or revision IDs into this stage.
 
+Choose two different standard Availability Zones from your account's list:
+
+```sh
+aws ec2 describe-availability-zones \
+  --filters Name=state,Values=available Name=zone-type,Values=availability-zone \
+  --query 'AvailabilityZones[].ZoneName' --output text
+```
+
+In the same terminal, set these to two names returned above. Stop if fewer than
+two zones are available.
+
+```sh
+AZ_A=us-west-2a
+AZ_B=us-west-2b
+```
+
+Explicit zones avoid `Fn::GetAZs` filtering, which can return just one zone if only
+one default subnet remains. Reuse the same zones on later deployments; changing
+them replaces subnets and dependent resources.
+
 If you used a custom domain, supply its same three parameter values again in the
 command below; do not assume a different stage folder has your previous SAM
 parameter overrides saved. Read the old values first if needed:
@@ -169,13 +190,15 @@ aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
 Without a custom domain:
 
 ```sh
-npm run deploy -- --confirm-changeset
+npm run deploy -- --confirm-changeset --parameter-overrides \
+  AvailabilityZoneA="$AZ_A" AvailabilityZoneB="$AZ_B"
 ```
 
 With your existing custom domain, use this instead, replacing the three values:
 
 ```sh
 npm run deploy -- --confirm-changeset --parameter-overrides \
+  AvailabilityZoneA="$AZ_A" AvailabilityZoneB="$AZ_B" \
   DomainName=app.example.com \
   CertificateArn=arn:aws:acm:us-east-1:111122223333:certificate/REPLACE-WITH-EXISTING-ID \
   HostedZoneId=REPLACE-WITH-EXISTING-ZONE
@@ -380,6 +403,7 @@ revisions can still reference it. Full application teardown avoids that transiti
 - [SAM Web Function routing](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-webfunction.html)
 - [AL2023 Python](https://docs.aws.amazon.com/linux/al2023/ug/python.html)
 - [Public AMI parameters](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/finding-an-ami-parameter-store.html)
+- [Fn::GetAZs and default-subnet filtering](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/intrinsic-function-reference-getavailabilityzones.html)
 - [CreationPolicy and resource signals](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-attribute-creationpolicy.html)
 - [cfn-signal and stack membership](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/cfn-signal.html)
 - [Connector deletion and asynchronous interface cleanup](https://docs.aws.amazon.com/cli/latest/reference/lambda-core/delete-network-connector.html)

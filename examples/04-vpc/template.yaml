@@ -3,6 +3,12 @@ Transform: AWS::Serverless-2016-10-31
 Description: Private HTTP access through a VPC connector, with CloudFront OAC and Cognito JWTs.
 
 Parameters:
+  AvailabilityZoneA:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Description: Standard Availability Zone for NAT and the private service.
+  AvailabilityZoneB:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Description: Different standard Availability Zone for the second connector subnet.
   DomainName:
     Type: String
     Default: ""
@@ -50,6 +56,12 @@ Parameters:
     AllowedValues: [DEBUG, INFO, WARN]
 
 Rules:
+  DistinctAvailabilityZones:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Equals: [!Ref AvailabilityZoneA, !Ref AvailabilityZoneB]
+        AssertDescription: Choose two different Availability Zones.
   CustomDomainParameters:
     Assertions:
       - Assert:
@@ -113,7 +125,7 @@ Resources:
     Properties:
       VpcId: !Ref Vpc
       CidrBlock: 10.42.0.0/24
-      AvailabilityZone: !Select [0, !GetAZs '']
+      AvailabilityZone: !Ref AvailabilityZoneA
       MapPublicIpOnLaunch: false
 
   PrivateSubnetA:
@@ -121,7 +133,7 @@ Resources:
     Properties:
       VpcId: !Ref Vpc
       CidrBlock: 10.42.1.0/24
-      AvailabilityZone: !Select [0, !GetAZs '']
+      AvailabilityZone: !Ref AvailabilityZoneA
       MapPublicIpOnLaunch: false
 
   PrivateSubnetB:
@@ -129,7 +141,7 @@ Resources:
     Properties:
       VpcId: !Ref Vpc
       CidrBlock: 10.42.2.0/24
-      AvailabilityZone: !Select [1, !GetAZs '']
+      AvailabilityZone: !Ref AvailabilityZoneB
       MapPublicIpOnLaunch: false
 
   PublicRouteTable:
