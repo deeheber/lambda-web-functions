@@ -13,3 +13,13 @@ Follow the stages in order:
 The MultiRegion walkthrough calls the Lambda-generated global URL directly
 to observe Lambda's latency-based routing. CloudFront is an optional follow-up
 for a custom domain, AWS WAF, caching, or origin access control.
+
+## Adding a stage
+
+- Build on an existing example. Include runnable code, offline tests, package
+  files, a template, and SAM configuration.
+- Add the stage folder to `matrix.stage` in `.github/workflows/checks.yml`.
+- In the stage README, explain whether to start a fresh stack or update an
+  existing one. Include commands, expected results, and cleanup. Label commands
+  that access AWS.
+- Keep earlier stages runnable when applying fixes or dependency updates.
