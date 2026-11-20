@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Lambda Web Function with a global application-managed JWT endpoint.
+
+Parameters:
+  TimeoutSeconds:
+    Type: Number
+    Default: 30
+    MinValue: 3
+    MaxValue: 900
+  MaxConcurrencyPerEnvironment:
+    Type: Number
+    Default: 64
+    MinValue: 1
+    MaxValue: 128
+  MaxEnvironments:
+    Type: Number
+    Default: 2
+    MinValue: 2
+    Description: Maximum execution environments per endpoint in each Region.
+  RateLimit:
+    Type: Number
+    Default: 100
+    AllowedValues: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+    Description: Maximum requests per second per endpoint in each Region.
+  ApplicationLogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [TRACE, DEBUG, INFO, WARN, ERROR, FATAL]
+  SystemLogLevel:
+    Type: String
+    Default: WARN
+    AllowedValues: [DEBUG, INFO, WARN]
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  PublicFunction:
+    Type: AWS::Serverless::WebFunction
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        Banner:
+          - 'js=import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
+        Target: node24
+        EntryPoints:
+          - src/server.ts
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-public
+      Runtime: nodejs24.x
+      CodeUri: ./
+      EntryPoint: src/server.ts
+      EndpointName: public
+      EndpointDescription: Global endpoint with application-managed Cognito JWT authentication.
+      EndpointType: MultiRegion
+      AutoDeploymentMode: Disabled
+      ReplicaRegions: [us-east-1]
+      AuthType: ApplicationManaged
+      Timeout: !Ref TimeoutSeconds
+      MaxConcurrencyPerEnvironment: !Ref MaxConcurrencyPerEnvironment
+      LoggingConfig:
+        ApplicationLogLevel: !Ref ApplicationLogLevel
+        SystemLogLevel: !Ref SystemLogLevel
+      ScalingConfig:
+        MaxEnvironments: !Ref MaxEnvironments
+      ThrottleConfig:
+        RateLimit: !Ref RateLimit
+      EnvironmentVariables:
+        AUTH_MODE: jwt
+        COGNITO_USER_POOL_ID: !Ref UserPool
+        COGNITO_CLIENT_ID: !Ref UserPoolClient
+
+Outputs:
+  PublicEndpointUrl:
+    Value: !Sub "https://${PublicFunctionEndpoint.DomainName}"
+  PublicFunctionName:
+    Value: !Sub ${AWS::StackName}-public
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Value: !Ref UserPoolClient

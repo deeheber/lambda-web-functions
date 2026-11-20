@@ -28,8 +28,8 @@ Run commands from the stage's folder. Hello world through VPC use the same `lwf`
 stack in `us-west-2`. Switching stages may remove or replace resources. Teardown
 deletes the application stack.
 
-[VPC](examples/04-vpc/README.md) adds a private HTTP service and VPC connector after
-Canary. Review the lab's NAT, public IPv4, EC2, and disk costs before deploying,
-then follow the cleanup checks when you finish.
+[VPC](examples/04-vpc/README.md) adds a private HTTP service and VPC connector.
+Review the lab's costs before deploying.
 
-The planned MultiRegion stage starts with a fresh application stack after VPC cleanup.
+After VPC cleanup, [MultiRegion](examples/05-multiregion/README.md) starts a fresh
+`lwf-multiregion` stack in `us-west-2`.
