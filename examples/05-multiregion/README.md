@@ -107,9 +107,9 @@ home Region. Lambda does not perform health-based failover. [Multi-Region routin
 
 Copy the `lambda-web-logstream` header from an authenticated `curl -i` response.
 In CloudWatch Logs in Oregon, open `/aws/lambda/web/lwf-multiregion-public` and
-find the stream whose name starts with that value. Compare Lambda's top-level
-`region` on the startup log with the `region` in the response. Allow time for
-logs to arrive. [Lambda log correlation](https://docs.aws.amazon.com/lambda/latest/dg/web-functions-logging.html)
+find the stream whose name starts with that value. Look for the startup message
+containing `"msg":"listening"` and compare the log event's top-level `region`
+with the `region` in the response. Allow time for logs to arrive. [Lambda log correlation](https://docs.aws.amazon.com/lambda/latest/dg/web-functions-logging.html)
 
 ## 3. Tear down
 
