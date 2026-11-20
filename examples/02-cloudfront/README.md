@@ -39,7 +39,7 @@ Distribution creation, changes, and deletion can take several minutes.
 
 ## Run locally
 
-Requires Node 24. These commands use placeholder Cognito IDs:
+These commands use placeholder Cognito IDs:
 
 ```sh
 npm ci
@@ -58,9 +58,7 @@ Stop the dev server with Ctrl+C.
 
 ## Check locally
 
-Requires Node 24, SAM CLI 1.170+, and cfn-lint. Scripts use Bash; tests also require zsh.
-These checks do not call AWS; tests inject verifiers or signing keys for valid JWTs. Uncached
-dependencies may need network access.
+See the [local prerequisites](../../README.md#local-prerequisites).
 
 ```sh
 npm ci

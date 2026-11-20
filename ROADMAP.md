@@ -8,19 +8,24 @@ Follow the stages in order:
 | [CloudFront](examples/02-cloudfront/README.md) ([#4](https://github.com/deeheber/lambda-web-functions/issues/4)) | Available | Separate origin access from user authentication with OAC and JWT forwarding; optionally add a custom domain. |
 | [Canary](examples/03-canary/README.md) ([#1](https://github.com/deeheber/lambda-web-functions/issues/1)) | Available | Split traffic between identifiable builds, promote one, then roll back. |
 | [VPC](examples/04-vpc/README.md) ([#3](https://github.com/deeheber/lambda-web-functions/issues/3)) | Live validation pending | Reach a private HTTP service through a version-pinned connector; short lab with explicit cost and cleanup steps. |
-| MultiRegion ([#2](https://github.com/deeheber/lambda-web-functions/issues/2)) | Planned | Expose the serving Region and compare regional routing. |
+| MultiRegion ([#2](https://github.com/deeheber/lambda-web-functions/issues/2)) | Planned | Deploy a fresh stack after VPC cleanup, then expose the serving Region and compare regional routing. |
+
+The MultiRegion walkthrough will call the Lambda-generated global URL directly
+to observe Lambda's latency-based routing. CloudFront is an optional follow-up
+for a custom domain, AWS WAF, caching, or origin access control.
 
 ## Adding a stage
 
 - Use `examples/05-multiregion` for the remaining stage.
 - Include runnable code, tests, package files, a template, and SAM configuration.
 - Add the stage's folder name to `matrix.stage` in `.github/workflows/checks.yml`.
-- Build on the previous stage using the [same stack](README.md#working-through-stages).
-  Preserve resource logical IDs where practical.
+- Build on the existing examples' code and templates. Start with a fresh
+  application stack after VPC cleanup. Preserve resource logical IDs where practical.
 - Document commands, stage changes, expected observations, and optional cleanup in the README.
   Label AWS-accessing commands.
 - Keep earlier stages small and runnable; apply bug fixes and dependency updates.
 
-Issue sketches reference obsolete `infra/app.yaml` and `docs/SPEC.md` paths;
-use the preceding stage's template. Before MultiRegion, check regional availability
-and VPC connector restrictions, and document anything that cannot carry forward.
+Issue sketches reference obsolete `infra/app.yaml` and `docs/SPEC.md` paths.
+Use the templates under `examples/` as references. Before MultiRegion, check
+regional availability and VPC connector restrictions, and document anything that
+cannot carry forward.

@@ -24,8 +24,7 @@ do not change the service's separate automatic-deployment mode.
 
 ## Check locally
 
-Requires Node 24.2+, SAM CLI 1.170+, and cfn-lint. Scripts use Bash; tests also require zsh.
-Tests do not call AWS; dependency installation may need network.
+See the [local prerequisites](../../README.md#local-prerequisites).
 
 ```sh
 npm ci

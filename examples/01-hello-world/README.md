@@ -12,7 +12,7 @@ Run commands from `examples/01-hello-world`.
 
 ## Run locally
 
-Requires Node 24. From the repository root:
+From the repository root, with [Node installed](../../README.md#local-prerequisites):
 
 ```sh
 cd examples/01-hello-world
@@ -44,8 +44,8 @@ missing or invalid tokens return 401 before routing, including for unknown paths
 
 ## Check locally
 
-Requires Node 24, SAM CLI 1.170+, and cfn-lint. Scripts use Bash; tests also require zsh.
-No AWS credentials are needed. [CI](../../.github/workflows/checks.yml) runs:
+See the [local prerequisites](../../README.md#local-prerequisites).
+[CI](../../.github/workflows/checks.yml) runs these checks:
 
 ```sh
 npm run typecheck
@@ -56,7 +56,7 @@ cfn-lint template.yaml
 ```
 
 Use `npm run build` for a build alone. Bare `sam build` omits required ESM package
-markers. Uncached build dependencies may need network access.
+markers.
 
 ## Deploy and test on AWS
 
