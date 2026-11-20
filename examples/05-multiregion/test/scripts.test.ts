@@ -7,6 +7,23 @@ import { expect, it } from 'vitest';
 
 const script = fileURLToPath(new URL('../scripts/get-jwt.sh', import.meta.url));
 
+it('loads and exports the deployment Region when sourced in zsh from another folder', () => {
+  const envScript = fileURLToPath(new URL('../scripts/env.sh', import.meta.url));
+  const result = spawnSync('zsh', [
+    '-fc',
+    'source "$1" && printf "%s\\n" "$STACK_NAME" && printenv AWS_REGION',
+    'zsh',
+    envScript,
+  ], {
+    cwd: tmpdir(),
+    encoding: 'utf8',
+    env: { PATH: process.env.PATH, AWS_REGION: 'us-east-1', STACK_NAME: 'caller-stack' },
+  });
+
+  expect(result.status, result.error?.message ?? result.stderr).toBe(0);
+  expect(result.stdout).toBe('lwf-multiregion\nus-west-2\n');
+});
+
 it('fetches a lab access token using the Stage 5 stack and home Region', () => {
   const fixture = mkdtempSync(join(tmpdir(), 'lwf-multiregion-jwt-'));
   try {
