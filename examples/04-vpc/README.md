@@ -7,8 +7,6 @@ Run commands from `examples/04-vpc`. This updates the same `lwf` stack in
 `us-west-2`; continue from Canary without teardown. The existing CloudFront
 hostname, Cognito users, and optional custom domain stay in place.
 
-Status: offline checks pass; the live AWS walkthrough has not been verified.
-
 ## Cost and lifetime
 
 [Delete the stack when you finish the lab](#4-clean-up). Resources keep billing
@@ -302,8 +300,7 @@ curl --fail-with-body -i -N --max-time 15 "$BASE/stream" \
 
 Expect 200 and ticks arriving over time. If using the custom domain, also repeat
 health, authenticated private-ping, and streaming against `CloudFrontEndpointUrl`
-so both hostnames are checked. Mark live validation complete only after routing,
-authentication, private access, streaming, and any configured domain checks pass.
+so both hostnames are checked.
 
 ## Troubleshooting
 

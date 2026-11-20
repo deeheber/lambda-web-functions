@@ -29,8 +29,7 @@ stack in `us-west-2`. Switching stages may remove or replace resources. Teardown
 deletes the application stack.
 
 [VPC](examples/04-vpc/README.md) adds a private HTTP service and VPC connector after
-Canary. Its live walkthrough is not yet verified. It is a short lab with ongoing
-NAT, public IPv4, EC2, and disk charges; review its cost estimate before deployment
-and follow its cleanup checks afterward.
+Canary. Review the lab's NAT, public IPv4, EC2, and disk costs before deploying,
+then follow the cleanup checks when you finish.
 
 The planned MultiRegion stage starts with a fresh application stack after VPC cleanup.

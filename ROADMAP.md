@@ -7,7 +7,7 @@ Follow the stages in order:
 | [Hello world](examples/01-hello-world/README.md) | Available | [Walkthrough](examples/01-hello-world/docs/walkthrough.md): requests, authentication, reuse, and concurrency. |
 | [CloudFront](examples/02-cloudfront/README.md) ([#4](https://github.com/deeheber/lambda-web-functions/issues/4)) | Available | Separate origin access from user authentication with OAC and JWT forwarding; optionally add a custom domain. |
 | [Canary](examples/03-canary/README.md) ([#1](https://github.com/deeheber/lambda-web-functions/issues/1)) | Available | Split traffic between identifiable builds, promote one, then roll back. |
-| [VPC](examples/04-vpc/README.md) ([#3](https://github.com/deeheber/lambda-web-functions/issues/3)) | Live validation pending | Reach a private HTTP service through a version-pinned connector; short lab with explicit cost and cleanup steps. |
+| [VPC](examples/04-vpc/README.md) ([#3](https://github.com/deeheber/lambda-web-functions/issues/3)) | Available | Reach a private HTTP service through a version-pinned connector; short lab with explicit cost and cleanup steps. |
 | MultiRegion ([#2](https://github.com/deeheber/lambda-web-functions/issues/2)) | Planned | Deploy a fresh stack after VPC cleanup, then expose the serving Region and compare regional routing. |
 
 The MultiRegion walkthrough will call the Lambda-generated global URL directly
