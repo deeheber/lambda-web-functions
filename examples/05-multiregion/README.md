@@ -60,7 +60,7 @@ aws lambda-web get-web-function-endpoint --region "$AWS_REGION" \
 
 - The URL ends in `.lambda-web.global.on.aws`.
 - `revisionWeights` shows one revision receiving 100% of traffic.
-- Rerun the endpoint query until `regionalEndpoints` shows `state: Active` for both Regions and any `updateStatus` field reads `Successful`.
+- Under `regionalEndpoints`, wait for both Regions to show `state: Active`. If a Region also shows `updateStatus`, wait for `Successful`.
 
 If deployment fails, check the CloudFormation stack events and each Region's
 status. Clean up the failed deployment before retrying.
