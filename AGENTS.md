@@ -4,17 +4,12 @@
 
 - Run commands that access AWS services or a deployed application only with explicit user approval.
 - Stop any local dev servers you start before finishing.
-- Tests must not call AWS services. Use fakes or injected JWKS for authentication tests.
-- Remove the CloudFront association before deleting its separate certificate stack.
+- Tests must not call AWS services.
 
 ## Design decisions
 
-- Preserve resource logical IDs where practical; document resource removals and replacements.
-- Never add an authentication bypass, disabled mode, or fallback for missing or invalid `AUTH_MODE`.
+- Preserve resource logical IDs where practical. Document resource removals and replacements.
+- Never add an authentication bypass or disabled mode.
 - Never use `lambda-web-*` headers for authentication or routing, or enable `X-Forwarded-Host` / Express `trust proxy` behavior.
-- Define each tunable's default once per stage: app settings in `src/config.ts`, Lambda settings in `template.yaml`. Do not repeat defaults in scripts or other configuration files.
-
-## Bundle pitfalls
-
-- Build and deploy through `npm run build` and `npm run deploy`. Bare `sam build` omits the package markers needed to run the ESM bundles.
-- Keep the esbuild `createRequire` banner: bundled CommonJS dependencies need it to load Node built-ins.
+- Define defaults once per stage. App defaults belong in `src/config.ts` and Lambda defaults in `template.yaml`.
+- Keep the esbuild `createRequire` banner so bundled CommonJS dependencies can load Node built-ins.

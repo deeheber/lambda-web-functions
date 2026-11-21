@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-See the [roadmap](ROADMAP.md) for stage order, status, and walkthroughs.
+See the [roadmap](ROADMAP.md) for all five stages in order.
 
 ## Local prerequisites
 
